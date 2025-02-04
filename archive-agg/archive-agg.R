@@ -1808,6 +1808,50 @@ col_approx_equal <- function(vec1, vec2, abs_tol, is_key) {
   }
 }
 
+approx_equal <- function(vec1, vec2, abs_tol, na_equal, .ptype = NULL, recurse = approx_equal, inds1 = NULL, inds2 = NULL) {
+  vecs <- list(vec1, vec2)
+  if (!is.null(inds1)) {
+    # could have logical or integerish inds; just leave it to later checks to error
+  } else {
+    vecs <- vec_recycle_common(!!!vecs)
+  }
+  vecs <- vec_cast_common(!!!vecs, .to = .ptype)
+  approx_equal0(vecs[[1]], vecs[[2]], abs_tol, na_equal, rec = approx_equal, inds1, inds2)
+}
+
+approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0, inds1 = NULL, inds2 = NULL) {
+  if (is_bare_numeric(vec1)) {
+    if (!is.null(inds1)) {
+      vec1 <- vec1[inds1]
+      vec2 <- vec2[inds2]
+    }
+    res <- if_else(
+      !is.na(vec1) & !is.na(vec2),
+      abs(vec1 - vec2) <= abs_tol,
+      if (na_equal) is.na(vec1) & is.na(vec2) else FALSE
+    )
+    return(res)
+  } else if (is.data.frame(vec1)) {
+    if (ncol(vec1) == 0) {
+      rep(TRUE, nrow(vec1))
+    } else {
+      Reduce(`&`, lapply(seq_len(ncol(vec1)), function(col_i) {
+        recurse(vec1[[col_i]], vec2[[col_i]], abs_tol, na_equal, recurse, inds1, inds2)
+      }))
+    }
+  } else {
+    # No special handling for any other types. Makes sense for unclassed atomic
+    # things; bare lists and certain vctrs classes might want recursion /
+    # specialization, though.
+    if (!is.null(inds1)) {
+      vec1 <- vec_slice(vec1, inds1)
+      vec2 <- vec_slice(vec2, inds2)
+    }
+    res <- vec_equal(vec1, vec2, na_equal = na_equal, .ptype = .ptype)
+    return(res)
+  }
+}
+
 epi_diff2_l <- function(earlier_snapshot, later_snapshot,
                         .is_locf = epiprocess:::is_locf, .compactify_tol = .Machine$double.eps^0.5) {
   # Extract metadata:
@@ -1981,6 +2025,89 @@ epi_diff2_l2 <- function(earlier_snapshot, later_snapshot,
   combined_tbl
 }
 
+epi_diff2_l3 <- function(earlier_snapshot, later_snapshot,
+                         .is_locf = epiprocess:::is_locf, .compactify_tol = .Machine$double.eps^0.5) {
+  # Extract metadata:
+  snapshot_metadata <- attr(later_snapshot, "metadata")
+  other_keys <- snapshot_metadata$other_keys
+  version <- snapshot_metadata$as_of
+  edf_names <- names(later_snapshot)
+  ekt_names <- c("geo_value", other_keys, "time_value")
+  val_names <- edf_names[! edf_names %in% ekt_names]
+  earlier_n <- nrow(earlier_snapshot)
+  later_n <- nrow(later_snapshot)
+
+  # Convert to tibble and combine for duplicate detection (epi_df would
+  # eventually complain):
+  earlier_tbl <- as_tibble(earlier_snapshot)
+  later_tbl <- as_tibble(later_snapshot)
+  combined_tbl <- vec_c(earlier_tbl, later_tbl)
+  combined_n <- nrow(combined_tbl)
+
+  # We'll also need epikeytimes and value columns separately:
+  combined_ekts <- combined_tbl[ekt_names]
+  combined_vals <- combined_tbl[val_names]
+
+  # We have five types of rows in combined_tbl:
+  # 1. From earlier_tbl, no matching ekt in later_tbl (deletion; turn vals to
+  #    NAs to match epi_archive format)
+  # 2. From earlier_tbl, with matching ekt in later_tbl (context; exclude from
+  #    result)
+  # 3. From later_tbl, with matching ekt in earlier_tbl, with value "close" (change
+  #    that we'll compactify away)
+  # 4. From later_tbl, with matching ekt in earlier_tbl, value not "close" (change
+  #    that we'll record)
+  # 5. From later_tbl, with no matching ekt in later_tbl (addition)
+
+  # We need to select out 1., 4., and 5., and alter values for 1.
+
+  # Row indices of first occurrence of each ekt; will be the same as
+  # seq_len(combined_n) except for when that ekt has been re-reported in
+  # `later_snapshot`, in which case (3. or 4.) it will point back to the row index of
+  # the same ekt in `earlier_snapshot`:
+  combined_ekt_firsts <- vec_duplicate_id(combined_ekts)
+
+  # Which rows from combined are cases 3. or 4.?
+  combined_ekt_is_repeat <- combined_ekt_firsts != seq_len(combined_n)
+  # For each row in 3. or 4., row numbers of the ekt appearance in earlier:
+  ekt_repeat_first_i <- combined_ekt_firsts[combined_ekt_is_repeat]
+
+  # Which rows from combined are in case 3.?
+  combined_compactify_away <- rep(FALSE, combined_n)
+  combined_compactify_away[combined_ekt_is_repeat] <-
+    approx_equal0(combined_vals,
+                  combined_vals,
+                  abs_tol = .compactify_tol,
+                  na_equal = TRUE,
+                  inds1 = combined_ekt_is_repeat,
+                  inds2 = ekt_repeat_first_i
+                  )
+
+  # Which rows from combined are in case 1.?
+  combined_is_deletion <- vec_rep_each(c(TRUE, FALSE), c(earlier_n, later_n))
+  combined_is_deletion[ekt_repeat_first_i] <- FALSE
+
+  # Which rows from combined are in cases 3., 4., or 5.?
+  combined_from_later <- vec_rep_each(c(FALSE, TRUE), c(earlier_n, later_n))
+
+  # Which rows from combined are in cases 1., 4., or 5.?
+  combined_include <- combined_is_deletion | combined_from_later & !combined_compactify_away
+  combined_tbl <- combined_tbl[combined_include, ]
+  # Represent deletion in 1. with NA-ing of all value columns. In some previous
+  # approaches to epi_diff2, this seemed to be faster than using
+  # vec_c(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
+  # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE):
+  combined_tbl[combined_is_deletion[combined_include], val_names] <- NA
+
+  # XXX the version should probably be an attr at this point; this is for
+  # compatibility with some other epi_diff2 variants being tested
+  combined_tbl$version <- version
+
+  combined_tbl <- as.data.table(combined_tbl)
+
+  combined_tbl
+}
+
 
 # TODO runs-based approaches?
 
@@ -2014,34 +2141,35 @@ bench::mark(
 )
 
 bench::mark(
-  ## a = epi_diff2_a(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## a_re = epi_diff2_a_re(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## a_nodel = epi_diff2_a_nodeletion(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## b = epi_diff2_b(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  c = epi_diff2_c(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  c2 = epi_diff2_c2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  c2c = epi_diff2_c2c(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  c2c2 = epi_diff2_c2c2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## c3 = epi_diff2_c3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## c4 = epi_diff2_c4(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## d = epi_diff2_d(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## e = epi_diff2_e(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## f = epi_diff2_f(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## g = epi_diff2_g(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  h = epi_diff2_h(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  h2 = epi_diff2_h2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## h3 = epi_diff2_h3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  i = epi_diff2_i(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## i2 = epi_diff2_i2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## i3 = epi_diff2_i3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## i4 = epi_diff2_i4(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  ## j = epi_diff2_j(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  k = epi_diff2_k(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  k2 = epi_diff2_k2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
-  k3 = epi_diff2_k3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## a = epi_diff2_a(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## a_re = epi_diff2_a_re(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## a_nodel = epi_diff2_a_nodeletion(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## b = epi_diff2_b(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## c = epi_diff2_c(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## c2 = epi_diff2_c2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## c2c = epi_diff2_c2c(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## c2c2 = epi_diff2_c2c2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## c3 = epi_diff2_c3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## c4 = epi_diff2_c4(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## d = epi_diff2_d(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## e = epi_diff2_e(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## f = epi_diff2_f(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## g = epi_diff2_g(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## h = epi_diff2_h(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## h2 = epi_diff2_h2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## h3 = epi_diff2_h3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## i = epi_diff2_i(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## i2 = epi_diff2_i2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## i3 = epi_diff2_i3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## i4 = epi_diff2_i4(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## ## j = epi_diff2_j(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## k = epi_diff2_k(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## k2 = epi_diff2_k2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  ## k3 = epi_diff2_k3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
   l = epi_diff2_l(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
   l0 = epi_diff2_l(snapshots$slide_value[[400]], snapshots$slide_value[[401]], .compactify_tol = 0),
   l2 = epi_diff2_l2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  l3 = epi_diff2_l3(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
   check = FALSE, # ignore key/order differences.
   #
   # XXX consider testing also removing as.data.table conversions on some
@@ -2449,9 +2577,11 @@ for (setup_i in seq_len(nrow(setups))) {
       ## mod_j = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_j),
       mod_k = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_k),
       mod_k2 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_k2),
-      mod_k3 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_k2),
-      mod_l = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_k2, .compactify_tol = .Machine$double.eps^0.5),
-      mod_l0 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_k2, .compactify_tol = 0),
+      mod_k3 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_k3),
+      mod_l = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l, .compactify_tol = .Machine$double.eps^0.5),
+      mod_l0 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l, .compactify_tol = 0),
+      mod_l2 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l2, .compactify_tol = .Machine$double.eps^0.5),
+      mod_l3 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = .Machine$double.eps^0.5),
       check = FALSE, # compactify tol vs. not, hopefully
       min_time = 10
     ))
