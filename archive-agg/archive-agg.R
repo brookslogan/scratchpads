@@ -1281,72 +1281,72 @@ dtbl_anti_join_extract <- dtbl_anti_join_extract_b # FIXME make this selection _
 ##   }
 ## }
 
-dtbl1x <- snapshots$slide_value[[400]] %>% as.data.table()
-dtbl1y <- snapshots$slide_value[[401]] %>% as.data.table()
-dtbl2x <- snapshots$slide_value[[400]] %>% mutate(fc = epipredict::dist_quantiles(as.list(case_rate_7d_av), 0.5)) %>% as.data.table()
-dtbl2y <- snapshots$slide_value[[401]] %>% mutate(fc = epipredict::dist_quantiles(as.list(case_rate_7d_av), 0.5)) %>% as.data.table()
-dtbl2px <- snapshots$slide_value[[400]] %>% mutate(fc = epipredict::dist_quantiles(as.list(case_rate_7d_av) %>% map(~ 0:10 * .x), 0:10/10)) %>% as.data.table()
-dtbl2py <- snapshots$slide_value[[401]] %>% mutate(fc = epipredict::dist_quantiles(as.list(case_rate_7d_av) %>% map(~ 0:10 * .x), 0:10/10)) %>% as.data.table()
+## dtbl1x <- snapshots$slide_value[[400]] %>% as.data.table()
+## dtbl1y <- snapshots$slide_value[[401]] %>% as.data.table()
+## dtbl2x <- snapshots$slide_value[[400]] %>% mutate(fc = epipredict::dist_quantiles(as.list(case_rate_7d_av), 0.5)) %>% as.data.table()
+## dtbl2y <- snapshots$slide_value[[401]] %>% mutate(fc = epipredict::dist_quantiles(as.list(case_rate_7d_av), 0.5)) %>% as.data.table()
+## dtbl2px <- snapshots$slide_value[[400]] %>% mutate(fc = epipredict::dist_quantiles(as.list(case_rate_7d_av) %>% map(~ 0:10 * .x), 0:10/10)) %>% as.data.table()
+## dtbl2py <- snapshots$slide_value[[401]] %>% mutate(fc = epipredict::dist_quantiles(as.list(case_rate_7d_av) %>% map(~ 0:10 * .x), 0:10/10)) %>% as.data.table()
 
-bench::mark(
-  dtbl1x[!dtbl1y, on = c("geo_value", "time_value")],
-  anti_join(dtbl1x, dtbl1y, by = c("geo_value", "time_value")),
-  dtbl_anti_join_extract_a(dtbl1x, dtbl1y, by = c("geo_value", "time_value"), names(dtbl1x)),
-  dtbl_anti_join_extract_b(dtbl1x, dtbl1y, by = c("geo_value", "time_value"), names(dtbl1x)),
-  dtbl_anti_join_extract_c(dtbl1x, dtbl1y, by = c("geo_value", "time_value"), names(dtbl1x)),
-  min_time = 1
-)
+## bench::mark(
+##   dtbl1x[!dtbl1y, on = c("geo_value", "time_value")],
+##   anti_join(dtbl1x, dtbl1y, by = c("geo_value", "time_value")),
+##   dtbl_anti_join_extract_a(dtbl1x, dtbl1y, by = c("geo_value", "time_value"), names(dtbl1x)),
+##   dtbl_anti_join_extract_b(dtbl1x, dtbl1y, by = c("geo_value", "time_value"), names(dtbl1x)),
+##   dtbl_anti_join_extract_c(dtbl1x, dtbl1y, by = c("geo_value", "time_value"), names(dtbl1x)),
+##   min_time = 1
+## )
 
-bench::mark(
-  dtbl1y[!dtbl1x, on = c("geo_value", "time_value")],
-  anti_join(dtbl1y, dtbl1x, by = c("geo_value", "time_value")),
-  dtbl_anti_join_extract_a(dtbl1y, dtbl1x, by = c("geo_value", "time_value"), names(dtbl1y)),
-  dtbl_anti_join_extract_b(dtbl1y, dtbl1x, by = c("geo_value", "time_value"), names(dtbl1y)),
-  dtbl_anti_join_extract_c(dtbl1y, dtbl1x, by = c("geo_value", "time_value"), names(dtbl1y)),
-  min_time = 1
-)
+## bench::mark(
+##   dtbl1y[!dtbl1x, on = c("geo_value", "time_value")],
+##   anti_join(dtbl1y, dtbl1x, by = c("geo_value", "time_value")),
+##   dtbl_anti_join_extract_a(dtbl1y, dtbl1x, by = c("geo_value", "time_value"), names(dtbl1y)),
+##   dtbl_anti_join_extract_b(dtbl1y, dtbl1x, by = c("geo_value", "time_value"), names(dtbl1y)),
+##   dtbl_anti_join_extract_c(dtbl1y, dtbl1x, by = c("geo_value", "time_value"), names(dtbl1y)),
+##   min_time = 1
+## )
 
-bench::mark(
-  ## dtbl2x[!dtbl2y, on = c("geo_value", "time_value", "fc")],
-  anti_join(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc")),
-  dtbl_anti_join_extract_a(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
-  dtbl_anti_join_extract_b(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
-  dtbl_anti_join_extract_c(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
-  min_time = 1
-)
+## bench::mark(
+##   ## dtbl2x[!dtbl2y, on = c("geo_value", "time_value", "fc")],
+##   anti_join(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc")),
+##   dtbl_anti_join_extract_a(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
+##   dtbl_anti_join_extract_b(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
+##   dtbl_anti_join_extract_c(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
+##   min_time = 1
+## )
 
 
-bench::mark(
-  ## dtbl2x[!dtbl2y, on = c("geo_value", "time_value", "fc")],
-  anti_join(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc")),
-  dtbl_anti_join_extract_a(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
-  dtbl_anti_join_extract_b(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
-  min_time = 1
-)
+## bench::mark(
+##   ## dtbl2x[!dtbl2y, on = c("geo_value", "time_value", "fc")],
+##   anti_join(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc")),
+##   dtbl_anti_join_extract_a(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
+##   dtbl_anti_join_extract_b(dtbl2x, dtbl2y, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
+##   min_time = 1
+## )
 
-bench::mark(
-  ## dtbl2y[!dtbl2x, on = c("geo_value", "time_value", "fc")],
-  anti_join(dtbl2y, dtbl2x, by = c("geo_value", "time_value", "fc")),
-  dtbl_anti_join_extract_a(dtbl2y, dtbl2x, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
-  dtbl_anti_join_extract_b(dtbl2y, dtbl2x, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
-  min_time = 1
-)
+## bench::mark(
+##   ## dtbl2y[!dtbl2x, on = c("geo_value", "time_value", "fc")],
+##   anti_join(dtbl2y, dtbl2x, by = c("geo_value", "time_value", "fc")),
+##   dtbl_anti_join_extract_a(dtbl2y, dtbl2x, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
+##   dtbl_anti_join_extract_b(dtbl2y, dtbl2x, by = c("geo_value", "time_value", "fc"), names(dtbl2x)),
+##   min_time = 1
+## )
 
-bench::mark(
-  ## dtbl2px[!dtbl2py, on = c("geo_value", "time_value", "fc")],
-  anti_join(dtbl2px, dtbl2py, by = c("geo_value", "time_value", "fc")),
-  dtbl_anti_join_extract_a(dtbl2px, dtbl2py, by = c("geo_value", "time_value", "fc"), names(dtbl2px)),
-  dtbl_anti_join_extract_b(dtbl2px, dtbl2py, by = c("geo_value", "time_value", "fc"), names(dtbl2px)),
-  min_time = 1
-)
+## bench::mark(
+##   ## dtbl2px[!dtbl2py, on = c("geo_value", "time_value", "fc")],
+##   anti_join(dtbl2px, dtbl2py, by = c("geo_value", "time_value", "fc")),
+##   dtbl_anti_join_extract_a(dtbl2px, dtbl2py, by = c("geo_value", "time_value", "fc"), names(dtbl2px)),
+##   dtbl_anti_join_extract_b(dtbl2px, dtbl2py, by = c("geo_value", "time_value", "fc"), names(dtbl2px)),
+##   min_time = 1
+## )
 
-bench::mark(
-  ## dtbl2py[!dtbl2px, on = c("geo_value", "time_value", "fc")],
-  anti_join(dtbl2py, dtbl2px, by = c("geo_value", "time_value", "fc")),
-  dtbl_anti_join_extract_a(dtbl2py, dtbl2px, by = c("geo_value", "time_value", "fc"), names(dtbl2px)),
-  dtbl_anti_join_extract_b(dtbl2py, dtbl2px, by = c("geo_value", "time_value", "fc"), names(dtbl2px)),
-  min_time = 1
-)
+## bench::mark(
+##   ## dtbl2py[!dtbl2px, on = c("geo_value", "time_value", "fc")],
+##   anti_join(dtbl2py, dtbl2px, by = c("geo_value", "time_value", "fc")),
+##   dtbl_anti_join_extract_a(dtbl2py, dtbl2px, by = c("geo_value", "time_value", "fc"), names(dtbl2px)),
+##   dtbl_anti_join_extract_b(dtbl2py, dtbl2px, by = c("geo_value", "time_value", "fc"), names(dtbl2px)),
+##   min_time = 1
+## )
 
 
 # XXX try to find some way to do "dispatch" selection only once rather than pay overhead every time? first check if this is important factor overall?
@@ -1354,22 +1354,22 @@ bench::mark(
 # --- issue seems mostly resolved already by avoiding copy
 
 # FIXME don't use rbind and probably avoid / check before using rbindlist
-rbind(data.table(x = as.difftime(1, units = "days")),
-      data.table(x = as.difftime(1, units = "weeks")))
+## rbind(data.table(x = as.difftime(1, units = "days")),
+##       data.table(x = as.difftime(1, units = "weeks")))
 
-vctrs::vec_c(data.table(x = as.difftime(1, units = "days")),
-             data.table(x = as.difftime(1, units = "weeks")))
+## vctrs::vec_c(data.table(x = as.difftime(1, units = "days")),
+##              data.table(x = as.difftime(1, units = "weeks")))
 
-dplyr::bind_rows(data.table(x = as.difftime(1, units = "days")),
-                 data.table(x = as.difftime(1, units = "weeks")))
+## dplyr::bind_rows(data.table(x = as.difftime(1, units = "days")),
+##                  data.table(x = as.difftime(1, units = "weeks")))
 
-bench::mark(
-  rbindlist(snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table)),
-  bind_rows(snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table)),
-  vctrs::vec_c(!!! snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table)),
-  vctrs::vec_c(!!! snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table) %>% lapply(as_tibble)) %>% as.data.table(),
-  vctrs::vec_c(!!! snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table) %>% lapply(function(x) as_tibble(as.list(x)))) %>% as.data.table()
-)
+## bench::mark(
+##   rbindlist(snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table)),
+##   bind_rows(snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table)),
+##   vctrs::vec_c(!!! snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table)),
+##   vctrs::vec_c(!!! snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table) %>% lapply(as_tibble)) %>% as.data.table(),
+##   vctrs::vec_c(!!! snapshots$slide_value %>% lapply(as_tibble) %>% lapply(as.data.table) %>% lapply(function(x) as_tibble(as.list(x)))) %>% as.data.table()
+## )
 
 epi_diff2_acd <- function(previous_snapshot, snapshot, .compactify_tol = .Machine$double.eps^0.5, rbinder = rbind, .is_locf = epiprocess:::is_locf) {
   previous_version <- attr(previous_snapshot, "metadata")$as_of
@@ -1465,7 +1465,7 @@ epi_diff2_f <- function(previous_snapshot, snapshot, .compactify_tol = .Machine$
 
 # TODO full_join-based approach?
 
-full_join(tibble(df = snapshots$slide_value[[400]]), tibble(df = snapshots$slide_value[[401]]))
+## full_join(tibble(df = snapshots$slide_value[[400]]), tibble(df = snapshots$slide_value[[401]]))
 
 epi_diff2_g <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is_locf) {
   previous_version <- attr(previous_snapshot, "metadata")$as_of
@@ -1825,11 +1825,15 @@ approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0
       vec1 <- vec1[inds1]
       vec2 <- vec2[inds2]
     }
-    res <- if_else(
+    # perf: since we're working with bare numerics and logicals: we can use
+    # fifelse, and stop it from propagating attributes when there's no special
+    # class to guide the meaning
+    res <- fifelse(
       !is.na(vec1) & !is.na(vec2),
       abs(vec1 - vec2) <= abs_tol,
       if (na_equal) is.na(vec1) & is.na(vec2) else FALSE
     )
+    attributes(res) <- NULL
     return(res)
   } else if (is.data.frame(vec1)) {
     if (ncol(vec1) == 0) {

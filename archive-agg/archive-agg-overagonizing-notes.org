@@ -1,3 +1,135 @@
+* partial 6, with epiprocess updates on branch
+
+#+begin_quote
+Setup 1
+# A tibble: 15 × 13
+   expression        min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+   <bch:expr>   <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+ 1 lgmem_no_del    1.31s    1.37s     0.712     244MB     3.20     8    36      11.2s <NULL>
+ 2 mod_a_re        1.99s    2.02s     0.496     663MB     2.78     5    28      10.1s <NULL>
+ 3 mod_c2c         1.16s    1.19s     0.837     292MB     2.98     9    32      10.8s <NULL>
+ 4 mod_c2c2     990.52ms    1.04s     0.966     275MB     3.09    10    32      10.3s <NULL>
+ 5 mod_c2c2vc      1.12s    1.24s     0.796     289MB     3.28     8    33      10.1s <NULL>
+ 6 mod_c2c2br      1.25s    1.29s     0.775     297MB     3.68     8    38      10.3s <NULL>
+ 7 mod_f           3.35s    3.38s     0.297     763MB     3.46     3    35      10.1s <NULL>
+ 8 mod_k        948.23ms  966.4ms     1.04      284MB     3.30    11    35      10.6s <NULL>
+ 9 mod_k2       506.12ms  521.5ms     1.82      185MB     2.78    19    29      10.4s <NULL>
+10 mod_k3       452.26ms 466.09ms     2.13      167MB     2.90    22    30      10.3s <NULL>
+11 mod_l        676.67ms 687.89ms     1.44      289MB     3.18    15    33      10.4s <NULL>
+12 mod_l0       690.41ms 700.28ms     1.42      288MB     3.13    15    33      10.6s <NULL>
+13 mod_l2       660.14ms 674.59ms     1.41      299MB     2.91    15    31      10.6s <NULL>
+14 mod_l20      670.28ms 709.99ms     1.39      299MB     2.87    14    29      10.1s <NULL>
+15 mod_l3        505.5ms 527.39ms     1.89      255MB     3.12    20    33      10.6s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 2
+# A tibble: 15 × 13
+   expression        min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+   <bch:expr>   <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+ 1 lgmem_no_del    6.23s    6.37s     0.157    6.07GB    1.41      2    18      12.7s <NULL>
+ 2 mod_a_re        8.89s    9.06s     0.110    12.2GB    0.938     2    17      18.1s <NULL>
+ 3 mod_c2c         3.47s    3.48s     0.287    3.18GB    0.478     3     5      10.5s <NULL>
+ 4 mod_c2c2        2.75s    2.83s     0.353    3.44GB    0.618     4     7      11.3s <NULL>
+ 5 mod_c2c2vc      2.97s    3.03s     0.328    3.44GB    0.655     4     8      12.2s <NULL>
+ 6 mod_c2c2br      3.15s    3.25s     0.306    3.46GB    0.688     4     9      13.1s <NULL>
+ 7 mod_f           9.33s    9.36s     0.107    15.4GB    0.801     2    15      18.7s <NULL>
+ 8 mod_k           2.92s    3.15s     0.320     3.8GB    0.560     4     7      12.5s <NULL>
+ 9 mod_k2          2.41s    2.41s     0.413    2.71GB    0.579     5     7      12.1s <NULL>
+10 mod_k3          2.17s    2.18s     0.458     2.4GB    0.458     5     5      10.9s <NULL>
+11 mod_l           2.86s    2.87s     0.349    6.43GB    1.13      4    13      11.5s <NULL>
+12 mod_l0          2.79s    2.82s     0.342    6.43GB    1.03      4    12      11.7s <NULL>
+13 mod_l2          2.87s     2.9s     0.345    6.96GB    1.12      4    13      11.6s <NULL>
+14 mod_l20         2.87s    2.88s     0.348    6.96GB    1.04      4    12      11.5s <NULL>
+15 mod_l3          2.09s    2.12s     0.472    5.36GB    1.23      5    13      10.6s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 3
+# A tibble: 15 × 13
+   expression        min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+   <bch:expr>   <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+ 1 lgmem_no_del 778.72ms 808.88ms     1.23   410.26MB    0.945    13    10      10.6s <NULL>
+ 2 mod_a_re        1.41s    1.42s     0.704  961.74MB    0.704     8     8      11.4s <NULL>
+ 3 mod_c2c      732.93ms 759.32ms     1.30   398.12MB    0.839    14     9      10.7s <NULL>
+ 4 mod_c2c2     602.04ms 627.69ms     1.60   416.08MB    0.944    17    10      10.6s <NULL>
+ 5 mod_c2c2vc   672.45ms  704.9ms     1.39   437.81MB    1.02     15    11      10.8s <NULL>
+ 6 mod_c2c2br   747.29ms 781.96ms     1.28   441.19MB    1.08     13    11      10.2s <NULL>
+ 7 mod_f           1.86s    1.98s     0.508    1.26GB    1.10      6    13      11.8s <NULL>
+ 8 mod_k        600.95ms 647.05ms     1.55   459.15MB    0.873    16     9      10.3s <NULL>
+ 9 mod_k2       454.24ms 462.79ms     2.13    363.7MB    0.580    22     6      10.3s <NULL>
+10 mod_k3       413.83ms 427.49ms     2.27   333.12MB    0.591    23     6      10.1s <NULL>
+11 mod_l        491.68ms 506.25ms     1.93   531.54MB    0.675    20     7      10.4s <NULL>
+12 mod_l0       494.49ms  504.1ms     1.94   531.54MB    0.775    20     8      10.3s <NULL>
+13 mod_l2       476.74ms 493.51ms     1.92   543.23MB    0.674    20     7      10.4s <NULL>
+14 mod_l20      484.17ms 489.58ms     2.00   543.23MB    0.699    20     7        10s <NULL>
+15 mod_l3        411.9ms 417.45ms     2.36   477.86MB    0.688    24     7      10.2s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 4
+# A tibble: 15 × 13
+   expression        min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+   <bch:expr>   <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+ 1 lgmem_no_del    1.48s     1.5s     0.663     245MB     1.90     7    20      10.6s <NULL>
+ 2 mod_a_re        2.17s     2.2s     0.455     662MB     1.64     5    18        11s <NULL>
+ 3 mod_c2c         1.24s    1.27s     0.779     292MB     1.85     8    19      10.3s <NULL>
+ 4 mod_c2c2     904.95ms 927.87ms     0.987     275MB     1.78    10    18      10.1s <NULL>
+ 5 mod_c2c2vc      1.12s    1.16s     0.863     288MB     2.01     9    21      10.4s <NULL>
+ 6 mod_c2c2br       1.3s    1.32s     0.757     297MB     2.08     8    22      10.6s <NULL>
+ 7 mod_f           3.34s    3.38s     0.296     763MB     1.97     3    20      10.1s <NULL>
+ 8 mod_k        940.66ms 973.47ms     1.03      283MB     1.78    11    19      10.7s <NULL>
+ 9 mod_k2       533.03ms 558.56ms     1.78      185MB     1.58    18    16      10.1s <NULL>
+10 mod_k3       467.77ms 503.75ms     1.92      166MB     1.55    21    17        11s <NULL>
+11 mod_l        647.68ms 658.35ms     1.52      288MB     1.71    16    18      10.5s <NULL>
+12 mod_l0       654.85ms 669.96ms     1.48      288MB     1.67    15    17      10.2s <NULL>
+13 mod_l2       667.65ms  679.8ms     1.46      299MB     1.75    15    18      10.3s <NULL>
+14 mod_l20       676.8ms 687.28ms     1.45      299MB     1.73    15    18      10.4s <NULL>
+15 mod_l3       508.77ms 535.29ms     1.86      255MB     1.76    19    18      10.2s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 5
+# A tibble: 15 × 13
+   expression        min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+   <bch:expr>   <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+ 1 lgmem_no_del    7.24s    7.41s     0.135    6.07GB    0.945     2    14      14.8s <NULL>
+ 2 mod_a_re        9.64s    9.81s     0.102    12.2GB    1.17      2    23      19.6s <NULL>
+ 3 mod_c2c          3.7s     3.7s     0.270    3.18GB    0.450     3     5      11.1s <NULL>
+ 4 mod_c2c2        2.73s    2.77s     0.358    3.44GB    0.537     4     6      11.2s <NULL>
+ 5 mod_c2c2vc      2.94s    2.96s     0.331    3.44GB    0.661     4     8      12.1s <NULL>
+ 6 mod_c2c2br      3.09s     3.1s     0.318    3.46GB    0.636     4     8      12.6s <NULL>
+ 7 mod_f           9.04s    9.06s     0.110    15.4GB    0.827     2    15      18.1s <NULL>
+ 8 mod_k           2.85s    2.88s     0.348     3.8GB    0.609     4     7      11.5s <NULL>
+ 9 mod_k2          2.39s     2.4s     0.416    2.71GB    0.582     5     7        12s <NULL>
+10 mod_k3          2.15s    2.16s     0.461     2.4GB    0.553     5     6      10.9s <NULL>
+11 mod_l           2.83s    2.85s     0.351    6.43GB    0.965     4    11      11.4s <NULL>
+12 mod_l0          2.85s    2.87s     0.349    6.43GB    1.05      4    12      11.5s <NULL>
+13 mod_l2          2.92s    2.95s     0.339    6.96GB    1.10      4    13      11.8s <NULL>
+14 mod_l20         2.92s    2.94s     0.339    6.96GB    1.10      4    13      11.8s <NULL>
+15 mod_l3          2.17s    2.19s     0.441    5.36GB    1.06      5    12      11.3s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 6
+# A tibble: 15 × 13
+   expression        min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+   <bch:expr>   <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+ 1 lgmem_no_del 907.25ms 921.75ms     1.08   410.26MB    1.08     11    11      10.2s <NULL>
+ 2 mod_a_re        1.44s    1.54s     0.653  961.93MB    0.839     7     9      10.7s <NULL>
+ 3 mod_c2c      809.95ms 848.98ms     1.18   398.35MB    0.982    12    10      10.2s <NULL>
+ 4 mod_c2c2     650.02ms 695.08ms     1.46   415.82MB    1.07     15    11      10.3s <NULL>
+ 5 mod_c2c2vc   755.88ms 785.45ms     1.27   438.06MB    1.17     13    12      10.3s <NULL>
+ 6 mod_c2c2br    780.2ms 828.29ms     1.15   440.98MB    1.15     12    12      10.4s <NULL>
+ 7 mod_f           1.72s    1.78s     0.564    1.26GB    1.22      6    13      10.6s <NULL>
+ 8 mod_k        642.26ms 666.12ms     1.50   458.95MB    0.845    16     9      10.7s <NULL>
+ 9 mod_k2       446.37ms 493.98ms     2.02    363.7MB    0.482    21     5      10.4s <NULL>
+10 mod_k3       414.38ms 454.27ms     2.20   333.12MB    0.575    23     6      10.4s <NULL>
+11 mod_l        516.99ms 531.24ms     1.85   531.54MB    0.680    19     7      10.3s <NULL>
+12 mod_l0       499.05ms 537.93ms     1.82   531.54MB    0.671    19     7      10.4s <NULL>
+13 mod_l2       522.04ms 533.95ms     1.83   543.23MB    0.673    19     7      10.4s <NULL>
+14 mod_l20      496.38ms 534.71ms     1.84   543.23MB    0.679    19     7      10.3s <NULL>
+15 mod_l3       439.61ms 462.73ms     2.11   477.86MB    0.575    22     6      10.4s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Warning messages:
+1: Some expressions had a GC in every iteration; so filtering is disabled. 
+2: Some expressions had a GC in every iteration; so filtering is disabled. 
+3: Some expressions had a GC in every iteration; so filtering is disabled. 
+4: Some expressions had a GC in every iteration; so filtering is disabled. 
+5: Some expressions had a GC in every iteration; so filtering is disabled. 
+6: Some expressions had a GC in every iteration; so filtering is disabled. 
+#+end_quote
+
 * partial 5
 
 #+begin_quote
