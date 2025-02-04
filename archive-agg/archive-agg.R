@@ -2109,8 +2109,6 @@ epi_diff2_l3 <- function(earlier_snapshot, later_snapshot,
 }
 
 
-# TODO runs-based approaches?
-
 # TODO `complete` + `filter`-to-second-issue-based approaches?
 
 # TODO unique-based approach?
@@ -2551,7 +2549,7 @@ for (setup_i in seq_len(nrow(setups))) {
       ## nonmod = map_snaps_ea(test_snapshots$slide_value, ~ .x, .compactify_tol = .Machine$double.eps^0.5),
       ## mod_a = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .compactify_tol = .Machine$double.eps^0.5),
       ## mod_a0 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_a0, .compactify_tol = .Machine$double.eps^0.5),
-      ## mod_a_re = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_a_re, .compactify_tol = .Machine$double.eps^0.5),
+      mod_a_re = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_a_re, .compactify_tol = .Machine$double.eps^0.5),
       ## mod_a_no_del = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_a_nodeletion, .compactify_tol = .Machine$double.eps^0.5),
       ## mod_b = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_b),
       ## mod_c = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_c),
@@ -2565,7 +2563,7 @@ for (setup_i in seq_len(nrow(setups))) {
       ## mod_c_delta_d_del = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_c_delta_d_del),
       ## mod_d = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_d),
       ## mod_e = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_e),
-      ## mod_f = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_f, .compactify_tol = .Machine$double.eps^0.5),
+      mod_f = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_f, .compactify_tol = .Machine$double.eps^0.5),
       ## mod_g = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_g),
       ## mod_h = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_h),
       ## mod_h2 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_h2),
@@ -2581,6 +2579,7 @@ for (setup_i in seq_len(nrow(setups))) {
       mod_l = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l, .compactify_tol = .Machine$double.eps^0.5),
       mod_l0 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l, .compactify_tol = 0),
       mod_l2 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l2, .compactify_tol = .Machine$double.eps^0.5),
+      mod_l20 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l2, .compactify_tol = 0),
       mod_l3 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = .Machine$double.eps^0.5),
       check = FALSE, # compactify tol vs. not, hopefully
       min_time = 10
@@ -2593,9 +2592,23 @@ for (setup_i in seq_len(nrow(setups))) {
 ##   map_snaps_ea_a(snapshots$slide_value, ~ .x, .compactify_tol = .Machine$double.eps^0.5)
 ## })
 
+Sys.setenv("PROFFER_PPROF_PATH" = "/usr/bin/pprof")
+
 jointprof::joint_pprof({
   map_snaps_ea_mod(snapshots$slide_value, ~ .x, .compactify_tol = .Machine$double.eps^0.5)
 })
+
+jointprof::joint_pprof({
+  withDTthreads(1, {
+    map_snaps_ea_mod(snapshots$slide_value, ~ .x,
+                     .epi_diff2 = epi_diff2_l3,
+                     .compactify_tol = .Machine$double.eps^0.5)
+  })
+})
+
+# TODO as_tibble.epi_df --- go through new_tibble not as_tibble? avoid overhead. Also think about whether vec_data is right.  Why not just use the decaying thing?
+
+# TODO replace if_else with something more efficient? ifelse if it won't mess it up? data.table::fifelse? something using basic R?
 
 
 simple_snap1 <-
