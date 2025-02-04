@@ -1808,22 +1808,23 @@ col_approx_equal <- function(vec1, vec2, abs_tol, is_key) {
   }
 }
 
-epi_diff2_l <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is_locf, .compactify_tol = .Machine$double.eps^0.5) {
+epi_diff2_l <- function(earlier_snapshot, later_snapshot,
+                        .is_locf = epiprocess:::is_locf, .compactify_tol = .Machine$double.eps^0.5) {
   # Extract metadata:
-  snapshot_metadata <- attr(snapshot, "metadata")
+  snapshot_metadata <- attr(later_snapshot, "metadata")
   other_keys <- snapshot_metadata$other_keys
   version <- snapshot_metadata$as_of
-  edf_names <- names(snapshot)
+  edf_names <- names(later_snapshot)
   ekt_names <- c("geo_value", other_keys, "time_value")
   val_names <- edf_names[! edf_names %in% ekt_names]
-  previous_n <- nrow(previous_snapshot)
-  n <- nrow(snapshot)
+  earlier_n <- nrow(earlier_snapshot)
+  later_n <- nrow(later_snapshot)
 
   # Convert to tibble and combine for duplicate detection (epi_df would
   # eventually complain):
-  previous_tbl <- as_tibble(previous_snapshot)
-  tbl <- as_tibble(snapshot)
-  combined_tbl <- vec_c(previous_tbl, tbl)
+  earlier_tbl <- as_tibble(earlier_snapshot)
+  later_tbl <- as_tibble(later_snapshot)
+  combined_tbl <- vec_c(earlier_tbl, later_tbl)
   combined_n <- nrow(combined_tbl)
 
   # We'll also need epikeytimes and value columns separately:
@@ -1831,52 +1832,61 @@ epi_diff2_l <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is_
   combined_vals <- combined_tbl[val_names]
 
   # We have five types of rows in combined_tbl:
-  # 1. From previous_tbl, no matching ekt in tbl (deletion; turn vals to NAs)
-  # 2. From previous_tbl, with matching ekt in tbl (context; exclude from
+  # 1. From earlier_tbl, no matching ekt in later_tbl (deletion; turn vals to
+  #    NAs to match epi_archive format)
+  # 2. From earlier_tbl, with matching ekt in later_tbl (context; exclude from
   #    result)
-  # 3. From tbl, with matching ekt in previous_tbl, with value "close" (change
+  # 3. From later_tbl, with matching ekt in earlier_tbl, with value "close" (change
   #    that we'll compactify away)
-  # 4. From tbl, with matching ekt in previous_tbl, value not "close" (change
+  # 4. From later_tbl, with matching ekt in earlier_tbl, value not "close" (change
   #    that we'll record)
-  # 5. From tbl, with no matching ekt in tbl (addition)
+  # 5. From later_tbl, with no matching ekt in later_tbl (addition)
 
   # We need to select out 1., 4., and 5., and alter values for 1.
 
   # Row indices of first occurrence of each ekt; will be the same as
   # seq_len(combined_n) except for when that ekt has been re-reported in
-  # `snapshot`, in which case (3. or 4.) it will point back to the row index of
-  # the same ekt in `previous_snapshot`:
+  # `later_snapshot`, in which case (3. or 4.) it will point back to the row index of
+  # the same ekt in `earlier_snapshot`:
   combined_ekt_firsts <- vec_duplicate_id(combined_ekts)
 
-  # XXX limit this first to looking at second part, since it should be only
-  # there?
+  # Which rows from combined are cases 3. or 4.?
   combined_ekt_is_repeat <- combined_ekt_firsts != seq_len(combined_n)
+  # For each row in 3. or 4., row numbers of the ekt appearance in earlier:
   ekt_repeat_first_i <- combined_ekt_firsts[combined_ekt_is_repeat]
 
-  compactify_away <- rep(FALSE, combined_n)
-  # TODO support tibble-type cols in the comparison and just recurse there?
-  compactify_away[combined_ekt_is_repeat] <- Reduce(
-    `&`, lapply(seq_along(val_names), function(i) {
-      val_col <- combined_vals[[i]]
-      col_approx_equal(val_col[combined_ekt_is_repeat], val_col[ekt_repeat_first_i], .compactify_tol, FALSE)
-    })
-  )
+  # Which rows from combined are in case 3.?
+  combined_compactify_away <- rep(FALSE, combined_n)
+  combined_compactify_away[combined_ekt_is_repeat] <-
+    # Which rows from 3. & 4. that are in case 3.?
+    #
+    # TODO col_approx_equal and is_locf should support data.frame-class cols and
+    # do this recursively:
+    Reduce(
+      `&`, lapply(seq_along(val_names), function(i) {
+        val_col <- combined_vals[[i]]
+        col_approx_equal(val_col[combined_ekt_is_repeat], val_col[ekt_repeat_first_i], .compactify_tol, FALSE)
+      })
+    )
 
-  is_deletion <- vec_rep_each(c(TRUE, FALSE), c(previous_n, n))
-  is_deletion[ekt_repeat_first_i] <- FALSE
+  # Which rows from combined are in case 1.?
+  combined_is_deletion <- vec_rep_each(c(TRUE, FALSE), c(earlier_n, later_n))
+  combined_is_deletion[ekt_repeat_first_i] <- FALSE
 
-  from_second <- vec_rep_each(c(FALSE, TRUE), c(previous_n, n))
+  # Which rows from combined are in cases 3., 4., or 5.?
+  combined_from_later <- vec_rep_each(c(FALSE, TRUE), c(earlier_n, later_n))
 
-  # deletions --- from_first & !boolversof(ekt_repeat_first_i)
-  # old values --- ekt_repeat_first_i
-  # new values considered the same as old values --- compactify_away
-  # new values not considered the same as old values --- combined_ekt_is_repeat & !compactify_away
-  # additions --- from_second & !combined_ekt_is_repeat
-
-  include <- is_deletion | from_second & !compactify_away
-  combined_tbl <- combined_tbl[include, ]
+  # Which rows from combined are in cases 1., 4., or 5.?
+  combined_include <- combined_is_deletion | combined_from_later & !combined_compactify_away
+  combined_tbl <- combined_tbl[combined_include, ]
+  # Represent deletion in 1. with NA-ing of all value columns. In some previous
+  # approaches to epi_diff2, this seemed to be faster than using
+  # vec_c(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
+  # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE):
   combined_tbl[is_deletion[include], val_names] <- NA
 
+  # XXX the version should probably be an attr at this point; this is for
+  # compatibility with some other epi_diff2 variants being tested
   combined_tbl$version <- version
 
   combined_tbl <- as.data.table(combined_tbl)
