@@ -243,8 +243,7 @@ epi_patch <- function(snapshot, update) {
 }
 
 map_ea <- function(.x, .f, ...,
-                   # FIXME support this
-                   ## .f_format = c("snapshot", "update"),
+                   .f_format = c("snapshot", "update"),
                    .clobberable_versions_start = NA,
                    .compactify_tol = 0,
                    .progress = FALSE) {
@@ -253,17 +252,18 @@ map_ea <- function(.x, .f, ...,
   }
 
   .f <- as_mapper(.f)
+  .f_format <- arg_match(.f_format)
 
   other_keys <- NULL
   previous_version <- NULL
   previous_snapshot <- NULL
   diffs <- map(.x, .progress = .progress, .f = function(.x_entry) {
-    snapshot <- .f(.x_entry, ...)
-    if (is_epi_df(snapshot)) {
-      version <- attr(snapshot, "metadata")[["as_of"]]
+    .f_output <- .f(.x_entry, ...)
+    if (is_epi_df(.f_output)) {
+      version <- attr(.f_output, "metadata")[["as_of"]]
     } else {
       cli_abort("`.f` produced an unsupported class:
-                 {epiprocess:::format_chr_deparse(class(snapshot))}")
+                 {epiprocess:::format_chr_deparse(class(.f_output))}")
     }
 
     if (!is.null(previous_version) && previous_version >= version) {
@@ -280,11 +280,25 @@ map_ea <- function(.x, .f, ...,
 
     # Calculate diff with epikeytimeversion + value columns; we'll
     if (is.null(previous_snapshot)) {
-      other_keys <<- attr(snapshot, "metadata")[["other_keys"]]
-      diff <- snapshot
+      other_keys <<- attr(.f_output, "metadata")[["other_keys"]]
+      diff <- .f_output
     } else {
-      diff <- epi_diff2(previous_snapshot, snapshot, compactify_tol = .compactify_tol)
+      diff <- epi_diff2(previous_snapshot, .f_output,
+                        input_format = .f_format,
+                        compactify_tol = .compactify_tol)
     }
+
+    # We'll need to diff any following outputs against an actual snapshot:
+    snapshot <-
+      if (.f_format == "snapshot") {
+        .f_output
+      } else { # .f_format == "update"
+        if (is.null(previous_snapshot)) {
+          .f_output
+        } else {
+          epi_patch(previous_snapshot, .f_output)
+        }
+      }
 
     previous_version <<- version
     previous_snapshot <<- snapshot
@@ -314,9 +328,11 @@ map_ea <- function(.x, .f, ...,
 }
 
 edf1 <- as_epi_df(tibble(geo_value = 1, time_value = 1:3, value = 1:3),
-                  as_of = 5)
+                  as_of = 5L)
 edf2 <- as_epi_df(tibble(geo_value = 1, time_value = 2:4, value = c(2, 5, 6)),
-                  as_of = 6)
+                  as_of = 6L)
+
+# TODO check time_value-version compatibility ahead of time.
 
 epi_diff2(edf1, edf2)
 
@@ -325,3 +341,7 @@ epi_diff2(edf1, edf2, input_format = "update")
 epi_patch(edf1, epi_diff2(edf1, edf2))
 
 map_ea(snapshots$slide_value, identity)
+
+map_ea(list(edf1, edf2), identity)
+
+map_ea(list(edf1, edf2), identity, .f_format = "update")
