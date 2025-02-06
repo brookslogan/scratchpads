@@ -191,6 +191,57 @@ epi_diff2 <- function(earlier_edf, later_edf,
   reclass(combined_tbl, later_metadata)
 }
 
+epi_patch <- function(snapshot, update) {
+  # Most input validation. This is a small function so use faster validation
+  # variants:
+  if (!inherits(snapshot, "epi_df")) {
+    cli_abort("`snapshot` must be an `epi_df`")
+  }
+  if (!inherits(update, "epi_df")) {
+    # XXX debating about whether to have a specialized class for updates/diffs.
+    # Seems nice for type-based reasoning and might remove some args from
+    # interfaces, but would require constructor/converter functions for that
+    # type.
+    cli_abort("`update` must be an `epi_df`")
+  }
+  snapshot_metadata <- attr(snapshot, "metadata")
+  update_metadata <- attr(update, "metadata")
+  snapshot_version <- snapshot_metadata$as_of
+  update_version <- update_metadata$as_of
+  snapshot_other_metadata <- snapshot_metadata[names(snapshot_metadata) != "as_of"]
+  update_other_metadata <- update_metadata[names(update_metadata) != "as_of"]
+  if (!identical(snapshot_other_metadata, update_other_metadata)) {
+    # TODO refactor this into a common (ptype?) check?
+    cli_abort(
+      "Incompatible `snapshot` and `update` metadata:",
+      body = capture.output(waldo::compare(
+        snapshot_other_metadata, update_other_metadata,
+        x_arg = "snapshot_metadata", y_arg = "update_metadata"
+      ))
+    )
+  }
+  if (snapshot_version >= update_version) {
+    cli_abort(c("`update` should have a later as_of than `snapshot`",
+                "i" = "`snapshot`'s as_of: {snapshot_version}",
+                "i" = "`update`'s as_of: {update_version}"))
+  }
+
+  ekt_names <- c("geo_value", snapshot_metadata$other_keys, "time_value")
+
+  result_tbl <- vec_rbind(as_tibble(snapshot), as_tibble(update))
+
+  dup_ids <- vec_duplicate_id(result_tbl[ekt_names])
+  overwritten_inds <- dup_ids[dup_ids != vec_seq_along(result_tbl)]
+  if (length(overwritten_inds) != 0) {
+    result_tbl <- result_tbl[-overwritten_inds,]
+  }
+
+  result_tbl <- reclass(result_tbl, update_metadata)
+  result_tbl <- arrange_canonical(result_tbl)
+
+  result_tbl
+}
+
 map_ea <- function(.x, .f, ...,
                    # FIXME support this
                    ## .f_format = c("snapshot", "update"),
@@ -262,19 +313,15 @@ map_ea <- function(.x, .f, ...,
   )
 }
 
-epi_diff2(
-  as_epi_df(tibble(geo_value = 1, time_value = 1:3, value = 1:3),
-            as_of = 5),
-  as_epi_df(tibble(geo_value = 1, time_value = 2:4, value = c(2, 5, 6)),
-            as_of = 6)
-)
+edf1 <- as_epi_df(tibble(geo_value = 1, time_value = 1:3, value = 1:3),
+                  as_of = 5)
+edf2 <- as_epi_df(tibble(geo_value = 1, time_value = 2:4, value = c(2, 5, 6)),
+                  as_of = 6)
 
-epi_diff2(
-  as_epi_df(tibble(geo_value = 1, time_value = 1:3, value = 1:3),
-            as_of = 5),
-  as_epi_df(tibble(geo_value = 1, time_value = 2:4, value = c(2, 5, 6)),
-            as_of = 6),
-  input_format = "update"
-)
+epi_diff2(edf1, edf2)
+
+epi_diff2(edf1, edf2, input_format = "update")
+
+epi_patch(edf1, epi_diff2(edf1, edf2))
 
 map_ea(snapshots$slide_value, identity)
