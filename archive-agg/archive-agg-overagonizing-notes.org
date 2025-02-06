@@ -1,3 +1,64 @@
+* vs. packed-up approach
+
+#+begin_quote
+Setup 1
+# A tibble: 9 × 13
+  expression           min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>      <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del       1.61s    1.67s     0.590     244MB     1.47     6    15      10.2s <NULL>
+2 l30             576.13ms 599.62ms     1.64      255MB     1.54    17    16      10.4s <NULL>
+3 l30_brl         712.35ms 724.38ms     1.35      260MB     1.93    14    20      10.4s <NULL>
+4 l30_vrl          711.6ms 738.87ms     1.34      260MB     1.91    14    20      10.5s <NULL>
+5 l30_tblvrl_set…  518.1ms 538.89ms     1.86      241MB     1.57    19    16      10.2s <NULL>
+6 l30_tblvrl_asDT 479.88ms 510.08ms     1.88      246MB     1.49    19    15      10.1s <NULL>
+7 l30_tblbrl_asDT 478.07ms 498.25ms     1.98      246MB     1.49    20    15      10.1s <NULL>
+8 l30_tblrbl      474.13ms 492.52ms     2.03      241MB     1.55    21    16      10.4s <NULL>
+9 pack             498.7ms 534.69ms     1.87      246MB     1.58    19    16      10.2s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 2
+# A tibble: 9 × 13
+  expression            min  median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>       <bch:tm> <bch:t>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del        7.03s    7.2s     0.139    6.07GB    1.18      2    17      14.4s <NULL>
+2 l30                 2.43s   2.53s     0.393    5.36GB    1.47      4    15      10.2s <NULL>
+3 l30_brl             2.64s   2.66s     0.376    5.36GB    1.32      4    14      10.6s <NULL>
+4 l30_vrl             2.48s    2.5s     0.399    5.36GB    1.30      4    13        10s <NULL>
+5 l30_tblvrl_setDT     2.3s   2.33s     0.427    5.35GB    1.45      5    17      11.7s <NULL>
+6 l30_tblvrl_asDT     2.33s   2.37s     0.415    5.35GB    1.49      5    18      12.1s <NULL>
+7 l30_tblbrl_asDT     2.35s   2.35s     0.415    5.35GB    0.995     5    12      12.1s <NULL>
+8 l30_tblrbl          2.32s   2.33s     0.426    5.35GB    1.11      5    13      11.7s <NULL>
+9 pack                2.39s   2.43s     0.410    5.35GB    1.07      5    13      12.2s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 3
+# A tibble: 9 × 13
+  expression            min  median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>       <bch:tm> <bch:t>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del        999ms   999ms      1.00     410MB   10.0       1    10      999ms <NULL>
+2 l30                 458ms   475ms      2.08     478MB    1.56     12     9      5.78s <NULL>
+3 l30_brl             528ms   557ms      1.80     496MB    1.80      9     9         5s <NULL>
+4 l30_vrl             536ms   552ms      1.79     496MB    1.79      9     9      5.03s <NULL>
+5 l30_tblvrl_setDT    450ms   470ms      2.13     456MB    0.996    15     7      7.03s <NULL>
+6 l30_tblvrl_asDT     448ms   460ms      2.14     475MB    0.854    15     6      7.02s <NULL>
+7 l30_tblbrl_asDT     444ms   461ms      2.17     475MB    0.814    16     6      7.38s <NULL>
+8 l30_tblrbl          427ms   445ms      2.24     456MB    0.839    16     6      7.15s <NULL>
+9 pack                442ms   453ms      2.15     475MB    0.807    16     6      7.44s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 4
+# A tibble: 9 × 13
+  expression           min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>       <bch:t> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del        1.7s    1.76s     0.568     244MB     1.61     6    17      10.6s <NULL>
+2 l30              585.6ms 592.15ms     1.68      255MB     1.68    17    17      10.1s <NULL>
+3 l30_brl            695ms 751.87ms     1.28      260MB     1.77    13    18      10.2s <NULL>
+4 l30_vrl          723.9ms 737.91ms     1.34      260MB     1.81    14    19      10.5s <NULL>
+5 l30_tblvrl_setDT 517.7ms 552.59ms     1.80      241MB     1.52    19    16      10.5s <NULL>
+6 l30_tblvrl_asDT  521.2ms  551.7ms     1.81      246MB     1.43    19    15      10.5s <NULL>
+7 l30_tblbrl_asDT    526ms    580ms     1.74      246MB     1.35    18    14      10.4s <NULL>
+8 l30_tblrbl       479.9ms  510.8ms     1.96      241MB     1.47    20    15      10.2s <NULL>
+9 pack             509.4ms 541.13ms     1.85      246MB     1.56    19    16      10.3s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+#+end_quote
+
 * changing to actually potentially have all-tbl list not with data.table mixed in
 
 #+begin_quote

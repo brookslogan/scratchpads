@@ -2681,6 +2681,7 @@ for (setup_i in seq_len(nrow(setups))) {
       l30_tblvrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs), .converter = as.data.table),
       l30_tblbrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = bind_rows, .converter = as.data.table),
       l30_tblrbl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = rbindlist, .converter = as.data.table),
+      pack = map_ea(test_snapshots$slide_value, ~ .x, .compactify_tol = 0),
       check = FALSE, # compactify tol vs. not, hopefully
       min_time = 10
     ))
