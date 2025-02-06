@@ -1,4 +1,92 @@
-* vs. rbindlist(edflist)
+* changing to actually potentially have all-tbl list not with data.table mixed in
+
+#+begin_quote
+Setup 1
+# A tibble: 8 × 13
+  expression           min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>      <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del       1.74s    1.79s     0.557     244MB     1.39     6    15      10.8s <NULL>
+2 l30             565.16ms 605.95ms     1.64      255MB     1.45    17    15      10.4s <NULL>
+3 l30_brl         729.13ms 773.78ms     1.29      260MB     1.78    13    18      10.1s <NULL>
+4 l30_vrl         731.55ms 763.84ms     1.31      260MB     1.87    14    20      10.7s <NULL>
+5 l30_tblvrl_set… 519.58ms  544.6ms     1.81      242MB     1.52    19    16      10.5s <NULL>
+6 l30_tblvrl_asDT 533.08ms 570.49ms     1.74      246MB     1.45    18    15      10.3s <NULL>
+7 l30_tblbrl_asDT 510.42ms 540.29ms     1.78      246MB     1.38    18    14      10.1s <NULL>
+8 l30_tblrbl      471.57ms 514.28ms     1.93      241MB     1.35    20    14      10.4s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 2
+# A tibble: 8 × 13
+  expression            min  median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>       <bch:tm> <bch:t>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del        7.13s   7.51s     0.133    6.07GB    0.999     2    15        15s <NULL>
+2 l30                  2.7s   2.78s     0.359    5.36GB    1.89      4    21      11.1s <NULL>
+3 l30_brl              2.6s   2.67s     0.363    5.36GB    1.36      4    15        11s <NULL>
+4 l30_vrl             2.63s   2.74s     0.359    5.36GB    1.26      4    14      11.1s <NULL>
+5 l30_tblvrl_setDT    2.42s   2.48s     0.399    5.35GB    1.50      4    15        10s <NULL>
+6 l30_tblvrl_asDT     2.52s   2.65s     0.381    5.35GB    1.43      4    15      10.5s <NULL>
+7 l30_tblbrl_asDT     2.53s   2.63s     0.380    5.35GB    1.33      4    14      10.5s <NULL>
+8 l30_tblrbl          2.48s   2.81s     0.358    5.35GB    1.25      4    14      11.2s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 3
+# A tibble: 8 × 13
+  expression           min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>      <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del       1.12s    1.12s     0.894     410MB    8.04      1     9      1.12s <NULL>
+2 l30              494.9ms 552.22ms     1.84      478MB    1.84      9     9       4.9s <NULL>
+3 l30_brl         532.73ms 569.73ms     1.73      496MB    1.73      9     9      5.21s <NULL>
+4 l30_vrl         536.82ms 582.52ms     1.71      496MB    1.52      9     8      5.27s <NULL>
+5 l30_tblvrl_set… 449.43ms  481.9ms     2.07      456MB    1.04     14     7      6.76s <NULL>
+6 l30_tblvrl_asDT 450.55ms  490.6ms     2.06      475MB    0.825    15     6      7.28s <NULL>
+7 l30_tblbrl_asDT 452.16ms 471.51ms     2.09      475MB    0.837    15     6      7.17s <NULL>
+8 l30_tblrbl      437.13ms 484.39ms     2.06      456MB    1.03     14     7       6.8s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 4
+# A tibble: 8 × 13
+  expression           min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>      <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del       1.67s    1.72s     0.578     244MB     1.44     6    15      10.4s <NULL>
+2 l30             572.89ms 611.21ms     1.63      255MB     1.44    17    15      10.4s <NULL>
+3 l30_brl         723.36ms 763.42ms     1.31      260MB     1.88    14    20      10.7s <NULL>
+4 l30_vrl         728.88ms 760.01ms     1.31      260MB     1.77    14    19      10.7s <NULL>
+5 l30_tblvrl_set…  536.6ms  586.1ms     1.73      241MB     1.44    18    15      10.4s <NULL>
+6 l30_tblvrl_asDT 518.68ms  551.2ms     1.82      246MB     1.53    19    16      10.5s <NULL>
+7 l30_tblbrl_asDT 519.14ms 555.52ms     1.73      246MB     1.35    18    14      10.4s <NULL>
+8 l30_tblrbl      491.07ms 515.56ms     1.95      241MB     1.46    20    15      10.3s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 5
+# A tibble: 8 × 13
+  expression            min  median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>       <bch:tm> <bch:t>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del        8.26s   8.33s     0.120    6.07GB     1.02     2    17      16.7s <NULL>
+2 l30                 2.47s   2.48s     0.388    5.36GB     1.16     4    12      10.3s <NULL>
+3 l30_brl             2.58s   2.65s     0.378    5.36GB     1.23     4    13      10.6s <NULL>
+4 l30_vrl             2.56s   2.57s     0.388    5.36GB     1.16     4    12      10.3s <NULL>
+5 l30_tblvrl_setDT    2.37s   2.41s     0.413    5.35GB     1.16     5    14      12.1s <NULL>
+6 l30_tblvrl_asDT      2.4s   2.42s     0.412    5.35GB     1.32     5    16      12.1s <NULL>
+7 l30_tblbrl_asDT     2.39s   2.41s     0.415    5.35GB     1.24     5    15      12.1s <NULL>
+8 l30_tblrbl           2.4s   2.42s     0.414    5.35GB     1.24     5    15      12.1s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 6
+# A tibble: 8 × 13
+  expression           min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result
+  <bch:expr>      <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>
+1 lgmem_no_del       1.05s    1.05s     0.952     410MB    8.57      1     9      1.05s <NULL>
+2 l30                510ms  526.4ms     1.90      478MB    1.11     12     7      6.33s <NULL>
+3 l30_brl         571.42ms 578.04ms     1.72      496MB    1.53      9     8      5.24s <NULL>
+4 l30_vrl         568.64ms 586.33ms     1.70      496MB    1.51      9     8      5.29s <NULL>
+5 l30_tblvrl_set… 489.93ms 501.31ms     1.96      456MB    0.654    15     5      7.65s <NULL>
+6 l30_tblvrl_asDT 499.66ms 520.01ms     1.89      475MB    0.873    13     6      6.88s <NULL>
+7 l30_tblbrl_asDT 498.53ms 513.29ms     1.94      475MB    1.13     12     7      6.18s <NULL>
+8 l30_tblrbl      485.27ms 496.11ms     2.00      456MB    0.857    14     6         7s <NULL>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Warning messages:
+1: Some expressions had a GC in every iteration; so filtering is disabled. 
+2: Some expressions had a GC in every iteration; so filtering is disabled. 
+3: Some expressions had a GC in every iteration; so filtering is disabled. 
+4: Some expressions had a GC in every iteration; so filtering is disabled. 
+#+end_quote
+
+* vs. rbindlist(dtbl as first entry + rest dtbl/tbl list)
 
 (though maybe less proper in some cases)
 
@@ -11,10 +99,10 @@ Setup 1
 2 l30             603.39ms 612.06ms     1.58      255MB     1.68    16    17      10.1s <NULL>
 3 l30_brl         738.96ms 832.74ms     1.15      277MB     2.01    12    21      10.4s <NULL>
 4 l30_vrl         724.55ms 762.61ms     1.28      277MB     1.77    13    18      10.1s <NULL>
-5 l30_edfvrl_set… 490.33ms 529.38ms     1.84      241MB     1.45    19    15      10.4s <NULL>
-6 l30_edfvrl_asDT 497.67ms  533.4ms     1.87      246MB     1.38    19    14      10.2s <NULL>
-7 l30_edfbrl_asDT 513.04ms  550.9ms     1.77      241MB     1.47    18    15      10.2s <NULL>
-8 l30_edfrbl      498.06ms 531.42ms     1.85      241MB     1.37    19    14      10.2s <NULL>
+5 l30_tblvrl_set… 490.33ms 529.38ms     1.84      241MB     1.45    19    15      10.4s <NULL>
+6 l30_tblvrl_asDT 497.67ms  533.4ms     1.87      246MB     1.38    19    14      10.2s <NULL>
+7 l30_tblbrl_asDT 513.04ms  550.9ms     1.77      241MB     1.47    18    15      10.2s <NULL>
+8 l30_tblrbl      498.06ms 531.42ms     1.85      241MB     1.37    19    14      10.2s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 2
 # A tibble: 8 × 13
@@ -24,10 +112,10 @@ Setup 2
 2 l30                 2.46s   2.49s     0.398    5.36GB     1.79     4    18      10.1s <NULL>
 3 l30_brl             2.52s   2.62s     0.378    5.38GB     1.80     4    19      10.6s <NULL>
 4 l30_vrl             2.46s    2.6s     0.381    5.38GB     1.24     4    13      10.5s <NULL>
-5 l30_edfvrl_setDT    2.27s   2.33s     0.429    5.35GB     1.29     5    15      11.6s <NULL>
-6 l30_edfvrl_asDT     2.27s   2.28s     0.440    5.35GB     1.32     5    15      11.4s <NULL>
-7 l30_edfbrl_asDT     2.27s   2.28s     0.438    5.35GB     1.31     5    15      11.4s <NULL>
-8 l30_edfrbl          2.27s   2.29s     0.438    5.35GB     1.31     5    15      11.4s <NULL>
+5 l30_tblvrl_setDT    2.27s   2.33s     0.429    5.35GB     1.29     5    15      11.6s <NULL>
+6 l30_tblvrl_asDT     2.27s   2.28s     0.440    5.35GB     1.32     5    15      11.4s <NULL>
+7 l30_tblbrl_asDT     2.27s   2.28s     0.438    5.35GB     1.31     5    15      11.4s <NULL>
+8 l30_tblrbl          2.27s   2.29s     0.438    5.35GB     1.31     5    15      11.4s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 3
 # A tibble: 8 × 13
@@ -37,10 +125,10 @@ Setup 3
 2 l30                 438ms   465ms      2.06     478MB    0.588    21     6      10.2s <NULL>
 3 l30_brl             509ms   537ms      1.79     503MB    0.895    18     9      10.1s <NULL>
 4 l30_vrl             507ms   563ms      1.78     503MB    0.892    18     9      10.1s <NULL>
-5 l30_edfvrl_setDT    436ms   479ms      2.05     456MB    0.488    21     5      10.2s <NULL>
-6 l30_edfvrl_asDT     434ms   486ms      2.03     475MB    0.677    21     7      10.3s <NULL>
-7 l30_edfbrl_asDT     432ms   469ms      2.15     456MB    0.683    22     7      10.2s <NULL>
-8 l30_edfrbl          423ms   458ms      2.16     456MB    0.588    22     6      10.2s <NULL>
+5 l30_tblvrl_setDT    436ms   479ms      2.05     456MB    0.488    21     5      10.2s <NULL>
+6 l30_tblvrl_asDT     434ms   486ms      2.03     475MB    0.677    21     7      10.3s <NULL>
+7 l30_tblbrl_asDT     432ms   469ms      2.15     456MB    0.683    22     7      10.2s <NULL>
+8 l30_tblrbl          423ms   458ms      2.16     456MB    0.588    22     6      10.2s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 4
 # A tibble: 8 × 13
@@ -50,10 +138,10 @@ Setup 4
 2 l30             546.09ms 615.14ms     1.62      255MB     1.43    17    15      10.5s <NULL>
 3 l30_brl         730.89ms 787.18ms     1.20      277MB     1.67    13    18      10.8s <NULL>
 4 l30_vrl         770.38ms 831.15ms     1.17      277MB     1.66    12    17      10.3s <NULL>
-5 l30_edfvrl_set… 533.04ms  574.3ms     1.75      241MB     1.36    18    14      10.3s <NULL>
-6 l30_edfvrl_asDT 553.63ms 595.81ms     1.67      246MB     1.37    17    14      10.2s <NULL>
-7 l30_edfbrl_asDT 496.61ms 582.45ms     1.72      241MB     1.34    18    14      10.4s <NULL>
-8 l30_edfrbl       494.7ms 567.46ms     1.75      241MB     1.26    18    13      10.3s <NULL>
+5 l30_tblvrl_set… 533.04ms  574.3ms     1.75      241MB     1.36    18    14      10.3s <NULL>
+6 l30_tblvrl_asDT 553.63ms 595.81ms     1.67      246MB     1.37    17    14      10.2s <NULL>
+7 l30_tblbrl_asDT 496.61ms 582.45ms     1.72      241MB     1.34    18    14      10.4s <NULL>
+8 l30_tblrbl       494.7ms 567.46ms     1.75      241MB     1.26    18    13      10.3s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 5
 # A tibble: 8 × 13
@@ -63,10 +151,10 @@ Setup 5
 2 l30                 2.64s   2.74s     0.356    5.36GB    2.14      4    24      11.2s <NULL>
 3 l30_brl             2.73s   2.82s     0.356    5.38GB    1.16      4    13      11.2s <NULL>
 4 l30_vrl             2.87s   2.91s     0.342    5.38GB    1.11      4    13      11.7s <NULL>
-5 l30_edfvrl_setDT    2.48s   2.52s     0.393    5.35GB    1.28      4    13      10.2s <NULL>
-6 l30_edfvrl_asDT      2.3s   2.36s     0.409    5.35GB    1.31      5    16      12.2s <NULL>
-7 l30_edfbrl_asDT      2.4s    2.6s     0.389    5.35GB    1.27      4    13      10.3s <NULL>
-8 l30_edfrbl          2.38s   2.41s     0.414    5.35GB    1.33      5    16      12.1s <NULL>
+5 l30_tblvrl_setDT    2.48s   2.52s     0.393    5.35GB    1.28      4    13      10.2s <NULL>
+6 l30_tblvrl_asDT      2.3s   2.36s     0.409    5.35GB    1.31      5    16      12.2s <NULL>
+7 l30_tblbrl_asDT      2.4s    2.6s     0.389    5.35GB    1.27      4    13      10.3s <NULL>
+8 l30_tblrbl          2.38s   2.41s     0.414    5.35GB    1.33      5    16      12.1s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 6
 # A tibble: 8 × 13
@@ -76,10 +164,10 @@ Setup 6
 2 l30                 487ms   492ms      2.03     478MB    2.25      9    10      4.44s <NULL>
 3 l30_brl             556ms   560ms      1.77     503MB    1.42     10     8      5.64s <NULL>
 4 l30_vrl             556ms   559ms      1.77     503MB    1.77      9     9      5.08s <NULL>
-5 l30_edfvrl_setDT    473ms   486ms      2.03     456MB    1.01     14     7      6.91s <NULL>
-6 l30_edfvrl_asDT     485ms   515ms      1.88     475MB    0.672    14     5      7.44s <NULL>
-7 l30_edfbrl_asDT     486ms   527ms      1.91     456MB    1.11     12     7       6.3s <NULL>
-8 l30_edfrbl          473ms   478ms      2.04     456MB    0.875    14     6      6.86s <NULL>
+5 l30_tblvrl_setDT    473ms   486ms      2.03     456MB    1.01     14     7      6.91s <NULL>
+6 l30_tblvrl_asDT     485ms   515ms      1.88     475MB    0.672    14     5      7.44s <NULL>
+7 l30_tblbrl_asDT     486ms   527ms      1.91     456MB    1.11     12     7       6.3s <NULL>
+8 l30_tblrbl          473ms   478ms      2.04     456MB    0.875    14     6      6.86s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Warning messages:
 1: Some expressions had a GC in every iteration; so filtering is disabled. 
@@ -89,7 +177,7 @@ Warning messages:
 5: Some expressions had a GC in every iteration; so filtering is disabled. 
 #+end_quote
 
-* vec_c -> vec_rbind truncated
+* vec_c -> vec_rbind truncated (dtbl as first entry + rest dtbl/tbl list)
 
 #+begin_quote
 Setup 1
@@ -99,10 +187,10 @@ Setup 1
 1 lgmem_no_del        1.6s    1.65s     0.608     244MB     1.56     7    18      11.5s <NULL>
 2 mod_l30          545.2ms 579.85ms     1.70      255MB     1.51    18    16      10.6s <NULL>
 3 mod_l30_brl      708.4ms 734.04ms     1.37      277MB     1.96    14    20      10.2s <NULL>
-4 mod_l30_edfbrl_… 470.2ms 500.99ms     1.97      242MB     1.67    20    17      10.2s <NULL>
+4 mod_l30_tblbrl_… 470.2ms 500.99ms     1.97      242MB     1.67    20    17      10.2s <NULL>
 5 mod_l30_vrl        774ms 814.27ms     1.24      277MB     1.81    13    19      10.5s <NULL>
-6 mod_l30_edfvrl_…   480ms 510.26ms     1.89      241MB     1.49    19    15      10.1s <NULL>
-7 mod_l30_edfvrl_… 466.6ms 518.47ms     1.87      246MB     1.58    19    16      10.2s <NULL>
+6 mod_l30_tblvrl_…   480ms 510.26ms     1.89      241MB     1.49    19    15      10.1s <NULL>
+7 mod_l30_tblvrl_… 466.6ms 518.47ms     1.87      246MB     1.58    19    16      10.2s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 2
 # A tibble: 7 × 13
@@ -111,10 +199,10 @@ Setup 2
 1 lgmem_no_del         7.03s  7.15s     0.140    6.07GB    0.420     2     6      14.3s <NULL>
 2 mod_l30              2.45s  2.66s     0.375    5.36GB    0.375     4     4      10.7s <NULL>
 3 mod_l30_brl          2.68s  2.76s     0.363    5.38GB    0.544     4     6        11s <NULL>
-4 mod_l30_edfbrl_asDT  2.49s  2.56s     0.390    5.35GB    0.293     4     3      10.2s <NULL>
+4 mod_l30_tblbrl_asDT  2.49s  2.56s     0.390    5.35GB    0.293     4     3      10.2s <NULL>
 5 mod_l30_vrl          2.57s   2.7s     0.373    5.38GB    0.560     4     6      10.7s <NULL>
-6 mod_l30_edfvrl_setDT 2.38s  2.42s     0.411    5.35GB    0.411     5     5      12.2s <NULL>
-7 mod_l30_edfvrl_asDT  2.34s  2.42s     0.412    5.35GB    0.330     5     4      12.1s <NULL>
+6 mod_l30_tblvrl_setDT 2.38s  2.42s     0.411    5.35GB    0.411     5     5      12.2s <NULL>
+7 mod_l30_tblvrl_asDT  2.34s  2.42s     0.412    5.35GB    0.330     5     4      12.1s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 3
 # A tibble: 7 × 13
@@ -123,10 +211,10 @@ Setup 3
 1 lgmem_no_del         945ms  961ms      1.03     410MB    1.13     11    12      10.6s <NULL>
 2 mod_l30              447ms  474ms      2.01     478MB    0.669    21     7      10.5s <NULL>
 3 mod_l30_brl          513ms  530ms      1.86     503MB    0.883    19     9      10.2s <NULL>
-4 mod_l30_edfbrl_asDT  428ms  448ms      2.17     456MB    0.592    22     6      10.1s <NULL>
+4 mod_l30_tblbrl_asDT  428ms  448ms      2.17     456MB    0.592    22     6      10.1s <NULL>
 5 mod_l30_vrl          517ms  553ms      1.79     503MB    0.795    18     8      10.1s <NULL>
-6 mod_l30_edfvrl_setDT 437ms  457ms      2.19     456MB    0.598    22     6        10s <NULL>
-7 mod_l30_edfvrl_asDT  432ms  463ms      2.14     475MB    0.583    22     6      10.3s <NULL>
+6 mod_l30_tblvrl_setDT 437ms  457ms      2.19     456MB    0.598    22     6        10s <NULL>
+7 mod_l30_tblvrl_asDT  432ms  463ms      2.14     475MB    0.583    22     6      10.3s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 4
 # A tibble: 7 × 13
@@ -135,14 +223,14 @@ Setup 4
 1 lgmem_no_del       1.73s    1.76s     0.565     245MB     1.41     6    15      10.6s <NULL>
 2 mod_l30          567.8ms 606.67ms     1.63      255MB     1.44    17    15      10.4s <NULL>
 3 mod_l30_brl     730.23ms 791.71ms     1.21      277MB     1.68    13    18      10.7s <NULL>
-4 mod_l30_edfbrl… 493.59ms  519.8ms     1.91      241MB     1.52    20    16      10.5s <NULL>
+4 mod_l30_tblbrl… 493.59ms  519.8ms     1.91      241MB     1.52    20    16      10.5s <NULL>
 5 mod_l30_vrl     729.41ms 741.23ms     1.34      277MB     1.82    14    19      10.5s <NULL>
-6 mod_l30_edfvrl… 491.27ms 520.46ms     1.94      241MB     1.55    20    16      10.3s <NULL>
-7 mod_l30_edfvrl… 499.97ms 549.66ms     1.77      246MB     1.38    18    14      10.2s <NULL>
+6 mod_l30_tblvrl… 491.27ms 520.46ms     1.94      241MB     1.55    20    16      10.3s <NULL>
+7 mod_l30_tblvrl… 499.97ms 549.66ms     1.77      246MB     1.38    18    14      10.2s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 #+end_quote
 
-* partial 7, rbindlist alternatives
+* partial 7, rbindlist alternatives (dtbl as first entry + rest dtbl/tbl list)
 
 #+begin_quote
 Setup 1
@@ -152,10 +240,10 @@ Setup 1
 1 lgmem_no_del       1.54s    1.55s     0.643     244MB     1.65     7    18      10.9s <NULL>
 2 mod_l30         513.92ms 544.45ms     1.84      255MB     1.65    19    17      10.3s <NULL>
 3 mod_l30_brl     704.62ms 741.22ms     1.34      277MB     2.02    14    21      10.4s <NULL>
-4 mod_l30_edfbrl… 464.36ms 502.79ms     1.98      241MB     1.69    20    17      10.1s <NULL>
+4 mod_l30_tblbrl… 464.36ms 502.79ms     1.98      241MB     1.69    20    17      10.1s <NULL>
 5 mod_l30_vcl     710.77ms 740.73ms     1.35      277MB     2.02    14    21      10.4s <NULL>
-6 mod_l30_edfvcl… 456.32ms 492.72ms     1.95      241MB     1.56    20    16      10.2s <NULL>
-7 mod_l30_edfvcl…  451.9ms 478.74ms     2.09      246MB     1.49    21    15      10.1s <NULL>
+6 mod_l30_tblvcl… 456.32ms 492.72ms     1.95      241MB     1.56    20    16      10.2s <NULL>
+7 mod_l30_tblvcl…  451.9ms 478.74ms     2.09      246MB     1.49    21    15      10.1s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 2
   C-c C-c  C-c C-c  C-c C-c# A tibble: 7 × 13
@@ -164,10 +252,10 @@ Setup 2
 1 lgmem_no_del          7.3s  7.62s     0.131    6.07GB    0.984     2    15      15.2s <NULL>
 2 mod_l30               2.3s  2.35s     0.413    5.36GB    1.41      5    17      12.1s <NULL>
 3 mod_l30_brl          2.53s  2.59s     0.384    5.38GB    1.34      4    14      10.4s <NULL>
-4 mod_l30_edfbrl_asDT   2.3s  2.34s     0.426    5.35GB    1.45      5    17      11.7s <NULL>
+4 mod_l30_tblbrl_asDT   2.3s  2.34s     0.426    5.35GB    1.45      5    17      11.7s <NULL>
 5 mod_l30_vcl          2.41s  2.43s     0.398    5.37GB    1.10      4    11        10s <NULL>
-6 mod_l30_edfvcl_setDT 2.41s  2.43s     0.398    5.35GB    0.697     4     7        10s <NULL>
-7 mod_l30_edfvcl_asDT  2.41s  2.43s     0.398    5.35GB    0         4     0        10s <NULL>
+6 mod_l30_tblvcl_setDT 2.41s  2.43s     0.398    5.35GB    0.697     4     7        10s <NULL>
+7 mod_l30_tblvcl_asDT  2.41s  2.43s     0.398    5.35GB    0         4     0        10s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 3
 # A tibble: 7 × 13
@@ -176,10 +264,10 @@ Setup 3
 1 lgmem_no_del         889ms  906ms      1.09     410MB    1.09     11    11      10.1s <NULL>
 2 mod_l30              436ms  466ms      2.15     478MB    0.683    22     7      10.2s <NULL>
 3 mod_l30_brl          520ms  552ms      1.79     503MB    0.896    18     9        10s <NULL>
-4 mod_l30_edfbrl_asDT  425ms  458ms      2.14     456MB    0.682    22     7      10.3s <NULL>
+4 mod_l30_tblbrl_asDT  425ms  458ms      2.14     456MB    0.682    22     7      10.3s <NULL>
 5 mod_l30_vcl          512ms  539ms      1.84     503MB    0.971    19    10      10.3s <NULL>
-6 mod_l30_edfvcl_setDT 428ms  453ms      2.17     456MB    0.690    22     7      10.1s <NULL>
-7 mod_l30_edfvcl_asDT  427ms  452ms      2.20     475MB    0.599    22     6        10s <NULL>
+6 mod_l30_tblvcl_setDT 428ms  453ms      2.17     456MB    0.690    22     7      10.1s <NULL>
+7 mod_l30_tblvcl_asDT  427ms  452ms      2.20     475MB    0.599    22     6        10s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 4
 # A tibble: 7 × 13
@@ -188,10 +276,10 @@ Setup 4
 1 lgmem_no_del       1.59s    1.65s     0.609     244MB     1.48     7    17      11.5s <NULL>
 2 mod_l30         549.07ms 567.65ms     1.73      255MB     1.54    18    16      10.4s <NULL>
 3 mod_l30_brl     730.75ms 767.73ms     1.29      277MB     1.88    13    19      10.1s <NULL>
-4 mod_l30_edfbrl… 480.14ms 514.62ms     1.94      241MB     1.55    20    16      10.3s <NULL>
+4 mod_l30_tblbrl… 480.14ms 514.62ms     1.94      241MB     1.55    20    16      10.3s <NULL>
 5 mod_l30_vcl     735.94ms 756.63ms     1.31      277MB     1.97    14    21      10.6s <NULL>
-6 mod_l30_edfvcl… 485.31ms 539.06ms     1.86      241MB     1.47    19    15      10.2s <NULL>
-7 mod_l30_edfvcl…  496.3ms 536.68ms     1.78      246MB     1.38    18    14      10.1s <NULL>
+6 mod_l30_tblvcl… 485.31ms 539.06ms     1.86      241MB     1.47    19    15      10.2s <NULL>
+7 mod_l30_tblvcl…  496.3ms 536.68ms     1.78      246MB     1.38    18    14      10.1s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 5
 # A tibble: 7 × 13
@@ -200,10 +288,10 @@ Setup 5
 1 lgmem_no_del         7.86s  7.92s     0.126    6.07GB     1.07     2    17      15.8s <NULL>
 2 mod_l30              2.31s  2.34s     0.417    5.36GB     2.42     5    29        12s <NULL>
 3 mod_l30_brl          2.43s  2.45s     0.397    5.38GB     1.59     4    16      10.1s <NULL>
-4 mod_l30_edfbrl_asDT  2.21s  2.22s     0.446    5.35GB     1.34     5    15      11.2s <NULL>
+4 mod_l30_tblbrl_asDT  2.21s  2.22s     0.446    5.35GB     1.34     5    15      11.2s <NULL>
 5 mod_l30_vcl          2.39s  2.41s     0.411    5.37GB     1.23     5    15      12.2s <NULL>
-6 mod_l30_edfvcl_setDT 2.25s  2.27s     0.433    5.35GB     1.30     5    15      11.5s <NULL>
-7 mod_l30_edfvcl_asDT  2.25s  2.27s     0.441    5.35GB     1.32     5    15      11.3s <NULL>
+6 mod_l30_tblvcl_setDT 2.25s  2.27s     0.433    5.35GB     1.30     5    15      11.5s <NULL>
+7 mod_l30_tblvcl_asDT  2.25s  2.27s     0.441    5.35GB     1.32     5    15      11.3s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Setup 6
 # A tibble: 7 × 13
@@ -212,10 +300,10 @@ Setup 6
 1 lgmem_no_del         986ms  994ms      1.01     410MB    1.01     11    11      10.9s <NULL>
 2 mod_l30              493ms  505ms      1.95     478MB    0.779    20     8      10.3s <NULL>
 3 mod_l30_brl          555ms  570ms      1.69     503MB    0.794    17     8      10.1s <NULL>
-4 mod_l30_edfbrl_asDT  471ms  474ms      2.08     456MB    0.692    21     7      10.1s <NULL>
+4 mod_l30_tblbrl_asDT  471ms  474ms      2.08     456MB    0.692    21     7      10.1s <NULL>
 5 mod_l30_vcl          556ms  573ms      1.72     503MB    0.766    18     8      10.4s <NULL>
-6 mod_l30_edfvcl_setDT 472ms  477ms      2.06     456MB    0.588    21     6      10.2s <NULL>
-7 mod_l30_edfvcl_asDT  476ms  482ms      2.03     475MB    0.581    21     6      10.3s <NULL>
+6 mod_l30_tblvcl_setDT 472ms  477ms      2.06     456MB    0.588    21     6      10.2s <NULL>
+7 mod_l30_tblvcl_asDT  476ms  482ms      2.03     475MB    0.581    21     6      10.3s <NULL>
 # ℹ 3 more variables: memory <list>, time <list>, gc <list>
 Warning messages:
 1: Some expressions had a GC in every iteration; so filtering is disabled. 

@@ -189,8 +189,6 @@ epi_diff2 <- function(earlier_edf, later_edf,
   # compatibility with some other epi_diff2 variants being tested
   combined_tbl$version <- later_version
 
-  combined_tbl <- as.data.table(combined_tbl)
-
   combined_tbl
 }
 
@@ -231,10 +229,9 @@ map_ea <- function(.x, .f, ...,
                   ))
     }
 
-    # Calculate diff as data.table with epikeytimeversion + value columns; we'll
-    # rbindlist (and set key) afterward so it can have any or no key set.
+    # Calculate diff with epikeytimeversion + value columns; we'll
     if (is.null(previous_snapshot)) {
-      diff <- as.data.table(as_tibble(snapshot))
+      diff <- as_tibble(snapshot)
       diff$version <- version
     } else {
       diff <- epi_diff2(previous_snapshot, snapshot, compactify_tol = .compactify_tol)
@@ -246,8 +243,13 @@ map_ea <- function(.x, .f, ...,
     diff
   })
 
-  diffs <- .rbindlist(diffs)
-  setkeyv(diffs, c("geo_value", other_keys, "time_value", "version"))
+  # rbindlist sometimes is a little fast&loose with attributes; use
+  # vec_rbind/bind_rows and convert:
+  diffs <- vec_rbind(!!!diffs)
+  # `vec_rbind()` might possibly alias a diff if all others (if any) are empty.
+  # So use as.data.table rather than setDT; performance-wise it doesn't seem to
+  # really matter.
+  diffs <- as.data.table(diffs, key = c("geo_value", other_keys, "time_value", "version"))
   setcolorder(diffs) # default: key first, then value cols
 
   as_epi_archive(

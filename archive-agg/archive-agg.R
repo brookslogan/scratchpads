@@ -2112,7 +2112,7 @@ epi_diff2_l3 <- function(earlier_snapshot, later_snapshot,
   combined_tbl
 }
 
-epi_diff2_l3edf <- function(earlier_snapshot, later_snapshot,
+epi_diff2_l3tbl <- function(earlier_snapshot, later_snapshot,
                          .is_locf = epiprocess:::is_locf, .compactify_tol = .Machine$double.eps^0.5) {
   # Extract metadata:
   snapshot_metadata <- attr(later_snapshot, "metadata")
@@ -2421,7 +2421,7 @@ map_snaps_ea <- function(.x, .f, ..., .is_locf = epiprocess:::is_locf, .clobbera
     compactify = FALSE # we already compactified; don't re-do work or change tol
   )
 }
-map_snaps_ea_mod <- function(.x, .f, ..., .epi_diff2 = epi_diff2_a, .is_locf = epiprocess:::is_locf, .rbindlist = rbindlist, .clobberable_versions_start = NA, .compactify_tol = 0, .progress = FALSE, .converter) {
+map_snaps_ea_mod <- function(.x, .f, ..., .epi_diff2 = epi_diff2_a, .is_locf = epiprocess:::is_locf, .rbindlist = rbindlist, .clobberable_versions_start = NA, .compactify_tol = 0, .progress = FALSE, .converter = as.data.table) {
   if (length(.x) == 0L) {
     cli_abort("`.x` must have positive length")
   }
@@ -2460,10 +2460,11 @@ map_snaps_ea_mod <- function(.x, .f, ..., .epi_diff2 = epi_diff2_a, .is_locf = e
 
     use_tol <- ".compactify_tol" %in% names(formals(.epi_diff2))
 
-    # Calculate diff as data.table with epikeytimeversion + value columns; we'll
+    # Calculate diff maybe as data.table with epikeytimeversion + value columns; we'll
     # rbindlist (and set key) afterward so it can have any or no key set.
     if (is.null(previous_snapshot)) {
-      diff <- as.data.table(as_tibble(snapshot))
+      ## diff <- as.data.table(as_tibble(snapshot))
+      diff <- as_tibble(snapshot)
       diff$version <- version
     } else {
       if (use_tol) {
@@ -2676,10 +2677,10 @@ for (setup_i in seq_len(nrow(setups))) {
       l30 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = 0),
       l30_brl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = 0, .rbindlist = bind_rows),
       l30_vrl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs)),
-      l30_edfvrl_setDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs), .converter = setDT),
-      l30_edfvrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs), .converter = as.data.table),
-      l30_edfbrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = bind_rows, .converter = as.data.table),
-      l30_edfrbl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = rbindlist, .converter = as.data.table),
+      l30_tblvrl_setDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs), .converter = setDT),
+      l30_tblvrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs), .converter = as.data.table),
+      l30_tblbrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = bind_rows, .converter = as.data.table),
+      l30_tblrbl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = rbindlist, .converter = as.data.table),
       check = FALSE, # compactify tol vs. not, hopefully
       min_time = 10
     ))
