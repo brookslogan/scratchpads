@@ -210,7 +210,6 @@ map_ea <- function(.x, .f, ...,
   diffs <- map(.x, .progress = .progress, .f = function(.x_entry) {
     snapshot <- .f(.x_entry, ...)
     if (is_epi_df(snapshot)) {
-      snapshot_other_keys <- attr(snapshot, "metadata")[["other_keys"]]
       version <- attr(snapshot, "metadata")[["as_of"]]
     } else {
       cli_abort("`.f` produced an unsupported class:
@@ -231,6 +230,7 @@ map_ea <- function(.x, .f, ...,
 
     # Calculate diff with epikeytimeversion + value columns; we'll
     if (is.null(previous_snapshot)) {
+      other_keys <<- attr(snapshot, "metadata")[["other_keys"]]
       diff <- as_tibble(snapshot)
       diff$version <- version
     } else {
