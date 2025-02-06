@@ -65,24 +65,48 @@ approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0
 epi_diff2 <- function(earlier_edf, later_edf,
                       input_format = c("snapshot", "update"),
                       compactify_tol = 0) {
-  # Most input validation:
-  assert_class(earlier_edf, "epi_df")
-  assert_class(later_edf, "epi_df")
-  input_format <- arg_match(input_format)
-  assert_numeric(compactify_tol, lower = 0, any.missing = FALSE, len = 1)
+  # Most input validation. This is a small function so use faster validation
+  # variants:
+  if (!inherits(earlier_edf, "epi_df")) {
+    cli_abort("`earlier_edf` must be an `epi_df`")
+  }
+  if (!inherits(later_edf, "epi_df")) {
+    cli_abort("`later_edf` must be an `epi_df`")
+  }
+  input_format <- arg_match0(input_format, c("snapshot", "update"))
+  if (!(is.vector(compactify_tol, mode = "numeric") && length(compactify_tol) == 1 && compactify_tol >= 0)) {
+    # Give a specific message:
+    assert_numeric(compactify_tol, lower = 0, any.missing = FALSE, len = 1)
+    # Fallback e.g. for invalid classes not caught by assert_numeric:
+    cli_abort("`compactify_tol` must be a length-1 double/integer >= 0")
+  }
 
   # Extract metadata:
-  earlier_version <- attr(earlier_edf, "metadata")$as_of
-  later_metadata <- attr(later_edf, "metadata")
-  other_keys <- later_metadata$other_keys
-  later_version <- later_metadata$as_of
-  edf_names <- names(later_edf)
-  ekt_names <- c("geo_value", other_keys, "time_value")
-  val_names <- edf_names[! edf_names %in% ekt_names]
+  earlier_metadata <- attr(earlier_edf, "metadata")
+  earlier_version <- earlier_metadata[["as_of"]]
   earlier_n <- nrow(earlier_edf)
+
+  later_metadata <- attr(later_edf, "metadata")
+  later_version <- later_metadata[["as_of"]]
   later_n <- nrow(later_edf)
 
+  other_keys <- earlier_metadata[["other_keys"]]
+  edf_names <- names(earlier_edf)
+  ekt_names <- c("geo_value", other_keys, "time_value")
+  val_names <- edf_names[! edf_names %in% ekt_names]
+
   # More input validation:
+  if (!identical(edf_names, names(later_edf))) {
+    cli_abort(c("`earlier_edf` and `later_edf` should have identical column
+                 names and ordering.",
+                "*" = "`earlier_edf` colnames: {format_chr_deparse(edf_names)}",
+                "*" = "`later_edf` colnames: {format_chr_deparse(names(later_edf))}"))
+  }
+  if (!identical(other_keys, later_metadata[["other_keys"]])) {
+    cli_abort(c("`earlier_edf` and `later_edf` should have identical other_keys.",
+                "*" = "`earlier_edf` other_keys: {format_chr_deparse(other_keys)}",
+                "*" = '`later_edf` other_keys: {format_chr_deparse(later_metadata[["other_keys"]])}'))
+  }
   if (earlier_version >= later_version) {
     cli_abort(c("`later_edf` should have a later as_of than `earlier_edf`",
                 "i" = "`earlier_edf`'s as_of: {earlier_version}",
@@ -90,7 +114,8 @@ epi_diff2 <- function(earlier_edf, later_edf,
   }
 
   # Convert to tibble so we won't violate (planned) `epi_df` key-uniqueness
-  # invariants by combining (which we need for more efficient processing):
+  # invariants by `vec_c`ing them (which we use for efficient processing using
+  # hash-table-based duplicate detection, without relying on DTthreads).
   earlier_tbl <- as_tibble(earlier_edf)
   later_tbl <- as_tibble(later_edf)
   combined_tbl <- vec_c(earlier_tbl, later_tbl)
@@ -142,19 +167,19 @@ epi_diff2 <- function(earlier_edf, later_edf,
   combined_from_later <- vec_rep_each(c(FALSE, TRUE), c(earlier_n, later_n))
 
   if (input_format == "update") {
+    # Cases 4. and 5.:
     combined_tbl <- combined_tbl[combined_from_later & !combined_compactify_away, ]
   } else { # input_format == "snapshot"
     # Which rows from combined are in case 1.?
     combined_is_deletion <- vec_rep_each(c(TRUE, FALSE), c(earlier_n, later_n))
     combined_is_deletion[ekt_repeat_first_i] <- FALSE
-
     # Which rows from combined are in cases 1., 4., or 5.?
     combined_include <- combined_is_deletion | combined_from_later & !combined_compactify_away
     combined_tbl <- combined_tbl[combined_include, ]
-    # Represent deletion in 1. with NA-ing of all value columns. In some previous
-    # approaches to epi_diff2, this seemed to be faster than using
+    # Represent deletion in 1. with NA-ing of all value columns. (In some
+    # previous approaches to epi_diff2, this seemed to be faster than using
     # vec_c(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
-    # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE):
+    # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE).)
     combined_tbl[combined_is_deletion[combined_include], val_names] <- NA
   }
 
@@ -165,6 +190,71 @@ epi_diff2 <- function(earlier_edf, later_edf,
   combined_tbl <- as.data.table(combined_tbl)
 
   combined_tbl
+}
+
+map_ea <- function(.x, .f, ...,
+                   # FIXME support this
+                   ## .f_format = c("snapshot", "update"),
+                   .clobberable_versions_start = NA,
+                   .compactify_tol = 0,
+                   .progress = FALSE) {
+  if (length(.x) == 0L) {
+    cli_abort("`.x` must have positive length")
+  }
+
+  .f <- as_mapper(.f)
+
+  other_keys <- NULL
+  previous_version <- NULL
+  previous_snapshot <- NULL
+  diffs <- map(.x, .progress = .progress, .f = function(.x_entry) {
+    snapshot <- .f(.x_entry, ...)
+    if (is_epi_df(snapshot)) {
+      snapshot_other_keys <- attr(snapshot, "metadata")[["other_keys"]]
+      version <- attr(snapshot, "metadata")[["as_of"]]
+    } else {
+      cli_abort("`.f` produced an unsupported class:
+                 {epiprocess:::format_chr_deparse(class(snapshot))}")
+    }
+
+    if (!is.null(previous_version) && previous_version >= version) {
+      # XXX this could give a very delayed error on unsorted versions. Go back
+      # to requiring .x to be a version list and validate that?
+      #
+      # epi_diff2 also would validate this, but give a better message:
+      cli_abort(c("Snapshots must be generated in ascending version order.",
+                  "x" = "Version {previous_version} was followed by {version}.",
+                  ">" = "If `.x` was a vector of version dates/tags, you might
+                         just need to `sort` it."
+                  ))
+    }
+
+    # Calculate diff as data.table with epikeytimeversion + value columns; we'll
+    # rbindlist (and set key) afterward so it can have any or no key set.
+    if (is.null(previous_snapshot)) {
+      diff <- as.data.table(as_tibble(snapshot))
+      diff$version <- version
+    } else {
+      diff <- epi_diff2(previous_snapshot, snapshot, compactify_tol = .compactify_tol)
+    }
+
+    previous_version <<- version
+    previous_snapshot <<- snapshot
+
+    diff
+  })
+
+  diffs <- .rbindlist(diffs)
+  setkeyv(diffs, c("geo_value", other_keys, "time_value", "version"))
+  setcolorder(diffs) # default: key first, then value cols
+
+  as_epi_archive(
+    diffs,
+    other_keys = other_keys,
+    clobberable_versions_start = .clobberable_versions_start,
+    versions_end = previous_version,
+    compactify = FALSE # we already compactified; don't re-do work or change tol
+  )
 }
 
 epi_diff2(
@@ -181,3 +271,5 @@ epi_diff2(
             as_of = 6),
   input_format = "update"
 )
+
+map_ea(snapshots$slide_value, identity)
