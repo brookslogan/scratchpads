@@ -1,3 +1,79 @@
+* packed moved to using edf diff format; to nested tbl & unnest for combining
+
+#+begin_quote
+Setup 1
+# A tibble: 6 × 13
+  expression       min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result    
+  <bch:expr>  <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>    
+1 lgmem_no_d…    1.72s    1.73s     0.578     244MB     1.54     6    16      10.4s <epi_rchv>
+2 l30         561.08ms 592.61ms     1.67      255MB     1.57    17    16      10.2s <epi_rchv>
+3 l30_tblvrl… 500.58ms 528.57ms     1.89      246MB     1.69    19    17      10.1s <epi_rchv>
+4 l30_tblbrl… 507.94ms 533.56ms     1.88      246MB     1.58    19    16      10.1s <epi_rchv>
+5 l30_tblrbl  489.17ms 526.75ms     1.91      241MB     1.62    20    17      10.5s <epi_rchv>
+6 packed      523.23ms 544.34ms     1.77      247MB     1.47    18    15      10.2s <epi_rchv>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 2
+# A tibble: 6 × 13
+  expression         min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result    
+  <bch:expr>      <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>    
+1 lgmem_no_del     7.03s  7.37s     0.136    6.07GB     1.15     2    17      14.7s <epi_rchv>
+2 l30              2.45s   2.5s     0.400    5.36GB     1.68     5    21      12.5s <epi_rchv>
+3 l30_tblvrl_asDT  2.45s  2.51s     0.399    5.35GB     1.70     4    17        10s <epi_rchv>
+4 l30_tblbrl_asDT  2.49s  2.52s     0.397    5.35GB     1.69     4    17      10.1s <epi_rchv>
+5 l30_tblrbl       2.44s  2.53s     0.388    5.35GB     1.55     4    16      10.3s <epi_rchv>
+6 packed           2.52s  2.55s     0.390    5.35GB     1.07     4    11      10.2s <epi_rchv>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 3
+# A tibble: 6 × 13
+  expression         min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result    
+  <bch:expr>      <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>    
+1 lgmem_no_del     982ms  982ms      1.02     410MB   10.2       1    10   982.48ms <epi_rchv>
+2 l30              464ms  476ms      2.06     478MB    1.27     13     8       6.3s <epi_rchv>
+3 l30_tblvrl_asDT  451ms  460ms      2.15     475MB    1.00     15     7      6.97s <epi_rchv>
+4 l30_tblbrl_asDT  449ms  457ms      2.19     475MB    1.25     14     8      6.41s <epi_rchv>
+5 l30_tblrbl       438ms  446ms      2.15     456MB    0.807    16     6      7.43s <epi_rchv>
+6 packed           471ms  486ms      2.00     477MB    1.08     13     7       6.5s <epi_rchv>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 4
+# A tibble: 6 × 13
+  expression       min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result    
+  <bch:expr>  <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>    
+1 lgmem_no_d…    1.71s    1.73s     0.576     244MB     1.54     6    16      10.4s <epi_rchv>
+2 l30         561.53ms 592.35ms     1.69      255MB     1.49    17    15      10.1s <epi_rchv>
+3 l30_tblvrl… 503.61ms 541.33ms     1.85      246MB     1.46    19    15      10.3s <epi_rchv>
+4 l30_tblbrl… 504.91ms 540.64ms     1.85      246MB     1.46    19    15      10.2s <epi_rchv>
+5 l30_tblrbl  498.71ms 535.68ms     1.89      241MB     1.49    19    15      10.1s <epi_rchv>
+6 packed      554.65ms 593.82ms     1.69      247MB     1.49    17    15      10.1s <epi_rchv>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 5
+# A tibble: 6 × 13
+  expression         min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result    
+  <bch:expr>      <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>    
+1 lgmem_no_del     8.23s  8.27s     0.121    6.07GB    0.847     2    14      16.5s <epi_rchv>
+2 l30              2.55s  2.56s     0.389    5.36GB    1.95      4    20      10.3s <epi_rchv>
+3 l30_tblvrl_asDT  2.49s   2.5s     0.399    5.35GB    1.89      4    19        10s <epi_rchv>
+4 l30_tblbrl_asDT   2.5s  2.57s     0.381    5.35GB    1.52      4    16      10.5s <epi_rchv>
+5 l30_tblrbl       2.47s   2.5s     0.401    5.35GB    1.20      5    15      12.5s <epi_rchv>
+6 packed           2.49s  2.53s     0.396    5.35GB    1.19      4    12      10.1s <epi_rchv>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Setup 6
+# A tibble: 6 × 13
+  expression       min   median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result    
+  <bch:expr>  <bch:tm> <bch:tm>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>    
+1 lgmem_no_d…    1.07s    1.07s     0.938     410MB    8.44      1     9      1.07s <epi_rchv>
+2 l30         517.83ms 521.55ms     1.89      478MB    2.11      9    10      4.75s <epi_rchv>
+3 l30_tblvrl… 497.18ms 503.63ms     1.96      475MB    0.840    14     6      7.14s <epi_rchv>
+4 l30_tblbrl… 497.63ms 508.84ms     1.94      475MB    1.13     12     7       6.2s <epi_rchv>
+5 l30_tblrbl  492.89ms 499.39ms     1.99      456MB    1.33     12     8      6.03s <epi_rchv>
+6 packed       519.1ms 524.62ms     1.90      477MB    0.877    13     6      6.84s <epi_rchv>
+# ℹ 3 more variables: memory <list>, time <list>, gc <list>
+Warning messages:
+1: Some expressions had a GC in every iteration; so filtering is disabled. 
+2: Some expressions had a GC in every iteration; so filtering is disabled. 
+3: Some expressions had a GC in every iteration; so filtering is disabled. 
+4: Some expressions had a GC in every iteration; so filtering is disabled. 
+#+end_quote
+
 * vs. packed-up approach
 
 #+begin_quote

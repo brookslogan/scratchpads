@@ -95,10 +95,13 @@ epi_diff2 <- function(earlier_edf, later_edf,
   ekt_names <- c("geo_value", other_keys, "time_value")
   val_names <- edf_names[! edf_names %in% ekt_names]
 
-  # TODO validate other metadata matching.  maybe just require metadata list identical
+  # TODO validate other metadata matching.  maybe just require metadata list identical aside from as_of
+
+  # TODO check no `version colname`
 
   # More input validation:
   if (!identical(edf_names, names(later_edf))) {
+    # XXX is this check actually necessary?
     cli_abort(c("`earlier_edf` and `later_edf` should have identical column
                  names and ordering.",
                 "*" = "`earlier_edf` colnames: {format_chr_deparse(edf_names)}",
@@ -185,11 +188,7 @@ epi_diff2 <- function(earlier_edf, later_edf,
     combined_tbl[combined_is_deletion[combined_include], val_names] <- NA
   }
 
-  # XXX the version should probably be an attr at this point; this is for
-  # compatibility with some other epi_diff2 variants being tested
-  combined_tbl$version <- later_version
-
-  combined_tbl
+  reclass(combined_tbl, later_metadata)
 }
 
 map_ea <- function(.x, .f, ...,
@@ -231,8 +230,7 @@ map_ea <- function(.x, .f, ...,
     # Calculate diff with epikeytimeversion + value columns; we'll
     if (is.null(previous_snapshot)) {
       other_keys <<- attr(snapshot, "metadata")[["other_keys"]]
-      diff <- as_tibble(snapshot)
-      diff$version <- version
+      diff <- snapshot
     } else {
       diff <- epi_diff2(previous_snapshot, snapshot, compactify_tol = .compactify_tol)
     }
@@ -240,15 +238,18 @@ map_ea <- function(.x, .f, ...,
     previous_version <<- version
     previous_snapshot <<- snapshot
 
-    diff
+    new_tibble(list(
+      version = version,
+      diff = list(as_tibble(diff))
+    ))
   })
 
   # rbindlist sometimes is a little fast&loose with attributes; use
-  # vec_rbind/bind_rows and convert:
-  diffs <- vec_rbind(!!!diffs)
-  # `vec_rbind()` might possibly alias a diff if all others (if any) are empty.
-  # So use as.data.table rather than setDT; performance-wise it doesn't seem to
-  # really matter.
+  # vec_rbind/bind_rows/unnest and convert:
+  diffs <- unnest(vec_rbind(!!!diffs), diff, names_sep = NULL)
+  # `unpack()` might possibly alias a diff if all others (if any) are empty, and
+  # diffs might alias inputs. So use as.data.table rather than setDT;
+  # performance-wise it doesn't seem to really matter.
   diffs <- as.data.table(diffs, key = c("geo_value", other_keys, "time_value", "version"))
   setcolorder(diffs) # default: key first, then value cols
 
