@@ -345,3 +345,10 @@ map_ea(snapshots$slide_value, identity)
 map_ea(list(edf1, edf2), identity)
 
 map_ea(list(edf1, edf2), identity, .f_format = "update")
+
+# TODO reconsider terminology... "update" vs. "patch" vs. "diff", etc.; want
+# something that applies to
+# something-that-is-either-snapshot-or-update/patch/diff, to not suggest
+# compact/minimal-diffs if not compact/minimal, and to not clobber potential
+# class constructors with functions that work with / generate those objects in
+# another way
