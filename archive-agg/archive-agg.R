@@ -982,7 +982,7 @@ epi_diff2_c2c2vc <- function(previous_snapshot, snapshot, .is_locf = epiprocess:
   diff <- dtbl_anti_join_extract_c(snapshot, previous_snapshot, edf_names, all_names)
   ekt_names <- c("geo_value", other_keys, "time_value")
   deletions <- dtbl_anti_join_extract_c(previous_snapshot, snapshot, ekt_names, ekt_names)
-  diff <- vec_c(diff, deletions) # will add NA val col entries for deletions
+  diff <- vec_rbind(diff, deletions) # will add NA val col entries for deletions
   diff
 }
 
@@ -1041,7 +1041,7 @@ epi_diff2_c4 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   deletions <- dtbl_anti_join_extract(previous_snapshot, snapshot, ekt_names, ekt_names)[
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions) # fills in NAs for deletions
+  diff <- vec_rbind(diff, deletions) # fills in NAs for deletions
   diff
 }
 
@@ -1067,7 +1067,7 @@ epi_diff2_c5 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   deletions <- dtbl_anti_join_extract(previous_snapshot, snapshot, ekt_names, ekt_names)[
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions, fill = TRUE)
+  diff <- vec_rbind(diff, deletions) # fills
   diff
 }
 
@@ -1266,7 +1266,7 @@ dtbl_anti_join_extract_c <- function(dtbl1, dtbl2, by, out_colnames) {
   ## }
   by_col_refs_tbl1 <- as_tibble(as.list(dtbl1)[by])
   by_col_refs_tbl2 <- as_tibble(as.list(dtbl2)[by])
-  ..overlapping <- vec_duplicate_detect(vec_c(by_col_refs_tbl1, by_col_refs_tbl2))
+  ..overlapping <- vec_duplicate_detect(vec_rbind(by_col_refs_tbl1, by_col_refs_tbl2))
   length(..overlapping) <- nrow(by_col_refs_tbl1)
   dtbl1[!..overlapping, out_colnames, with = FALSE]
 }
@@ -1496,11 +1496,11 @@ epi_diff2_h <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is_
   set(previous_snapshot, , "version", previous_version)
   snapshot <- as.data.table(snapshot)
   set(snapshot, , "version", version)
-  diff <- vec_c(previous_snapshot, snapshot)
+  diff <- vec_rbind(previous_snapshot, snapshot)
   # Temporarily break data.table ownership model; don't leak this:
   diff_no_version <- as_tibble(as.list(diff)[setdiff(names(diff), "version")])
   ..version = version
-  # XXX consider tibble conversion, vec_c, dup detect, tack on version,
+  # XXX consider tibble conversion, vec_rbind, dup detect, tack on version,
   # duplicate&old&deletion removal instead of redundant&fancy version removal
   diff <- diff[!vec_duplicate_detect(diff_no_version) & version == ..version]
   ekt_names <- c("geo_value", other_keys, "time_value")
@@ -1509,7 +1509,7 @@ epi_diff2_h <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is_
   ][
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions)
+  diff <- vec_rbind(diff, deletions)
   diff
 }
 
@@ -1522,7 +1522,7 @@ epi_diff2_h2 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   set(previous_snapshot, , "version", previous_version)
   snapshot <- as.data.table(snapshot)
   set(snapshot, , "version", version)
-  diff <- vec_c(previous_snapshot, snapshot)
+  diff <- vec_rbind(previous_snapshot, snapshot)
   # Temporarily break data.table ownership model; don't leak this:
   diff_no_version <- as_tibble(as.list(diff)[setdiff(names(diff), "version")])
   ..version <- version
@@ -1531,7 +1531,7 @@ epi_diff2_h2 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   deletions <- dtbl_anti_join_extract(previous_snapshot, snapshot, ekt_names, ekt_names)[
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions)
+  diff <- vec_rbind(diff, deletions)
   diff
 }
 
@@ -1544,7 +1544,7 @@ epi_diff2_h3 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   set(previous_snapshot, , "version", previous_version)
   snapshot <- as.data.table(snapshot)
   set(snapshot, , "version", version)
-  diff <- vec_c(previous_snapshot, snapshot)
+  diff <- vec_rbind(previous_snapshot, snapshot)
   # Temporarily break data.table ownership model; don't leak this:
   diff_no_version <- as_tibble(as.list(diff)[setdiff(names(diff), "version")])
   ..locf <- unique(vec_duplicate_id(diff_no_version))
@@ -1555,7 +1555,7 @@ epi_diff2_h3 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   deletions <- dtbl_anti_join_extract(previous_snapshot, snapshot, ekt_names, ekt_names)[
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions)
+  diff <- vec_rbind(diff, deletions)
   diff
 }
 
@@ -1581,7 +1581,7 @@ epi_diff2_i <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is_
   ][
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions)
+  diff <- vec_rbind(diff, deletions)
   diff
 }
 
@@ -1609,7 +1609,7 @@ epi_diff2_i2 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   ][
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions)
+  diff <- vec_rbind(diff, deletions)
   diff
 }
 
@@ -1639,7 +1639,7 @@ epi_diff2_i3 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   ][
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions)
+  diff <- vec_rbind(diff, deletions)
   diff
 }
 
@@ -1664,7 +1664,7 @@ epi_diff2_i4 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   ][
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions)
+  diff <- vec_rbind(diff, deletions)
   diff
 }
 
@@ -1691,7 +1691,7 @@ epi_diff2_j <- function(previous_snapshot, snapshot, .is_locf = is_locf, .compac
   ][
   , version := ..version
   ]
-  diff <- vec_c(diff, deletions)
+  diff <- vec_rbind(diff, deletions)
   diff
 }
 
@@ -1711,12 +1711,12 @@ epi_diff2_k <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is_
 
   previous_edf_refs_tbl <- as_tibble(as.list(previous_snapshot)[edf_names])
   edf_refs_tbl <- as_tibble(as.list(snapshot)[edf_names])
-  edfs_combined <- vec_c(previous_edf_refs_tbl, edf_refs_tbl)
+  edfs_combined <- vec_rbind(previous_edf_refs_tbl, edf_refs_tbl)
   unchanged <- vec_duplicate_detect(edfs_combined)
 
   previous_ekt_refs_tbl <- as_tibble(as.list(previous_snapshot)[ekt_names])
   ekt_refs_tbl <- as_tibble(as.list(snapshot)[ekt_names])
-  ekts_combined <- vec_c(previous_ekt_refs_tbl, ekt_refs_tbl)
+  ekts_combined <- vec_rbind(previous_ekt_refs_tbl, ekt_refs_tbl)
   removed <- !vec_duplicate_detect(ekts_combined)
   length(removed) <- nrow(previous_ekt_refs_tbl)
   removed <- c(removed, rep(FALSE, nrow(ekt_refs_tbl)))
@@ -1743,12 +1743,12 @@ epi_diff2_k2 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   previous_snapshot <- as_tibble(previous_snapshot)
   snapshot <- as_tibble(snapshot)
 
-  snapshots_combined <- vec_c(previous_snapshot, snapshot)
+  snapshots_combined <- vec_rbind(previous_snapshot, snapshot)
   unchanged <- vec_duplicate_detect(snapshots_combined)
 
   previous_ekt_tbl <- previous_snapshot[ekt_names]
   ekt_tbl <- snapshot[ekt_names]
-  ekts_combined <- vec_c(previous_ekt_tbl, ekt_tbl)
+  ekts_combined <- vec_rbind(previous_ekt_tbl, ekt_tbl)
   removed <- !vec_duplicate_detect(ekts_combined)
   length(removed) <- nrow(previous_ekt_tbl)
   removed <- c(removed, rep(FALSE, nrow(ekt_tbl)))
@@ -1775,7 +1775,7 @@ epi_diff2_k3 <- function(previous_snapshot, snapshot, .is_locf = epiprocess:::is
   previous_snapshot <- as_tibble(previous_snapshot)
   snapshot <- as_tibble(snapshot)
 
-  snapshots_combined <- vec_c(previous_snapshot, snapshot)
+  snapshots_combined <- vec_rbind(previous_snapshot, snapshot)
   unchanged <- vec_duplicate_detect(snapshots_combined)
 
   ekts_combined <- snapshots_combined[ekt_names]
@@ -1872,7 +1872,7 @@ epi_diff2_l <- function(earlier_snapshot, later_snapshot,
   # eventually complain):
   earlier_tbl <- as_tibble(earlier_snapshot)
   later_tbl <- as_tibble(later_snapshot)
-  combined_tbl <- vec_c(earlier_tbl, later_tbl)
+  combined_tbl <- vec_rbind(earlier_tbl, later_tbl)
   combined_n <- nrow(combined_tbl)
 
   # We'll also need epikeytimes and value columns separately:
@@ -1929,7 +1929,7 @@ epi_diff2_l <- function(earlier_snapshot, later_snapshot,
   combined_tbl <- combined_tbl[combined_include, ]
   # Represent deletion in 1. with NA-ing of all value columns. In some previous
   # approaches to epi_diff2, this seemed to be faster than using
-  # vec_c(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
+  # vec_rbind(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
   # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE):
   combined_tbl[combined_is_deletion[combined_include], val_names] <- NA
 
@@ -1958,7 +1958,7 @@ epi_diff2_l2 <- function(earlier_snapshot, later_snapshot,
   # eventually complain):
   earlier_tbl <- as_tibble(earlier_snapshot)
   later_tbl <- as_tibble(later_snapshot)
-  combined_tbl <- vec_c(earlier_tbl, later_tbl)
+  combined_tbl <- vec_rbind(earlier_tbl, later_tbl)
   combined_n <- nrow(combined_tbl)
 
   # We'll also need epikeytimes and value columns separately:
@@ -2012,7 +2012,7 @@ epi_diff2_l2 <- function(earlier_snapshot, later_snapshot,
 
   # Represent deletion in 1. with NA-ing of all value columns. In some previous
   # approaches to epi_diff2, this seemed to be faster than using
-  # vec_c(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
+  # vec_rbind(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
   # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE):
   combined_tbl[combined_is_deletion, val_names] <- NA
 
@@ -2045,7 +2045,7 @@ epi_diff2_l3 <- function(earlier_snapshot, later_snapshot,
   # eventually complain):
   earlier_tbl <- as_tibble(earlier_snapshot)
   later_tbl <- as_tibble(later_snapshot)
-  combined_tbl <- vec_c(earlier_tbl, later_tbl)
+  combined_tbl <- vec_rbind(earlier_tbl, later_tbl)
   combined_n <- nrow(combined_tbl)
 
   # We'll also need epikeytimes and value columns separately:
@@ -2099,7 +2099,7 @@ epi_diff2_l3 <- function(earlier_snapshot, later_snapshot,
   combined_tbl <- combined_tbl[combined_include, ]
   # Represent deletion in 1. with NA-ing of all value columns. In some previous
   # approaches to epi_diff2, this seemed to be faster than using
-  # vec_c(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
+  # vec_rbind(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
   # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE):
   combined_tbl[combined_is_deletion[combined_include], val_names] <- NA
 
@@ -2128,7 +2128,7 @@ epi_diff2_l3edf <- function(earlier_snapshot, later_snapshot,
   # eventually complain):
   earlier_tbl <- as_tibble(earlier_snapshot)
   later_tbl <- as_tibble(later_snapshot)
-  combined_tbl <- vec_c(earlier_tbl, later_tbl)
+  combined_tbl <- vec_rbind(earlier_tbl, later_tbl)
   combined_n <- nrow(combined_tbl)
 
   # We'll also need epikeytimes and value columns separately:
@@ -2182,7 +2182,7 @@ epi_diff2_l3edf <- function(earlier_snapshot, later_snapshot,
   combined_tbl <- combined_tbl[combined_include, ]
   # Represent deletion in 1. with NA-ing of all value columns. In some previous
   # approaches to epi_diff2, this seemed to be faster than using
-  # vec_c(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
+  # vec_rbind(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
   # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE):
   combined_tbl[combined_is_deletion[combined_include], val_names] <- NA
 
@@ -2676,9 +2676,9 @@ for (setup_i in seq_len(nrow(setups))) {
       mod_l30 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = 0),
       mod_l30_brl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = 0, .rbindlist = bind_rows),
       mod_l30_edfbrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = bind_rows, .converter = as.data.table),
-      mod_l30_vcl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = 0, .rbindlist = function(DTs) vec_c(!!!DTs)),
-      mod_l30_edfvcl_setDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = function(DTs) vec_c(!!!DTs), .converter = setDT),
-      mod_l30_edfvcl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = function(DTs) vec_c(!!!DTs), .converter = as.data.table),
+      mod_l30_vrl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs)),
+      mod_l30_edfvrl_setDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs), .converter = setDT),
+      mod_l30_edfvrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3edf, .compactify_tol = 0, .rbindlist = function(DTs) vec_rbind(!!!DTs), .converter = as.data.table),
       check = FALSE, # compactify tol vs. not, hopefully
       min_time = 10
     ))

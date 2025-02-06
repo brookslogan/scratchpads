@@ -95,6 +95,8 @@ epi_diff2 <- function(earlier_edf, later_edf,
   ekt_names <- c("geo_value", other_keys, "time_value")
   val_names <- edf_names[! edf_names %in% ekt_names]
 
+  # TODO validate other metadata matching.  maybe just require metadata list identical
+
   # More input validation:
   if (!identical(edf_names, names(later_edf))) {
     cli_abort(c("`earlier_edf` and `later_edf` should have identical column
@@ -114,11 +116,11 @@ epi_diff2 <- function(earlier_edf, later_edf,
   }
 
   # Convert to tibble so we won't violate (planned) `epi_df` key-uniqueness
-  # invariants by `vec_c`ing them (which we use for efficient processing using
+  # invariants by `vec_rbind`ing them (which we use for efficient processing using
   # hash-table-based duplicate detection, without relying on DTthreads).
   earlier_tbl <- as_tibble(earlier_edf)
   later_tbl <- as_tibble(later_edf)
-  combined_tbl <- vec_c(earlier_tbl, later_tbl)
+  combined_tbl <- vec_rbind(earlier_tbl, later_tbl)
   combined_n <- nrow(combined_tbl)
 
   # We'll also need epikeytimes and value columns separately:
@@ -178,7 +180,7 @@ epi_diff2 <- function(earlier_edf, later_edf,
     combined_tbl <- combined_tbl[combined_include, ]
     # Represent deletion in 1. with NA-ing of all value columns. (In some
     # previous approaches to epi_diff2, this seemed to be faster than using
-    # vec_c(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
+    # vec_rbind(case_1_ekts, cases_45_tbl) or bind_rows to fill with NAs, and more
     # general than data.table's rbind(case_1_ekts, cases_45_tbl, fill = TRUE).)
     combined_tbl[combined_is_deletion[combined_include], val_names] <- NA
   }
