@@ -244,6 +244,7 @@ map_accumulate_ea <- function(.x, .f, ...,
                               .init,
                               .f2_format = c("snapshot", "update"),
                               .clobberable_versions_start = NA,
+                              .versions_end = NULL,
                               .compactify_tol = 0,
                               .progress = FALSE) {
   if (length(.x) == 0L) {
@@ -320,6 +321,17 @@ map_accumulate_ea <- function(.x, .f, ...,
     ))
   })
 
+  # More validation&defaults we can only do now:
+  if (is.null(versions_end)) {
+    versions_end <- previous_version
+  } else if (versions_end < previous_version) {
+    cli_abort(c(
+      "Specified `versions_end` was earlier than the final `as_of`.",
+      "*" = "`versions_end`: {versions_end}",
+      "*" = "Final `as_of`: {previous_version}"
+    ))
+  }
+
   # rbindlist sometimes is a little fast&loose with attributes; use
   # vec_rbind/bind_rows/unnest and convert:
   diffs <- unnest(vec_rbind(!!!diffs), diff, names_sep = NULL)
@@ -333,7 +345,7 @@ map_accumulate_ea <- function(.x, .f, ...,
     diffs,
     other_keys = other_keys,
     clobberable_versions_start = .clobberable_versions_start,
-    versions_end = previous_version,
+    versions_end = versions_end,
     compactify = FALSE # we already compactified; don't re-do work or change tol
   )
 
@@ -343,6 +355,7 @@ map_accumulate_ea <- function(.x, .f, ...,
 map_ea <- function(.x, .f, ...,
                    .f_format = c("snapshot", "update"),
                    .clobberable_versions_start = NA,
+                   .versions_end = NULL,
                    .compactify_tol = 0,
                    .progress = FALSE) {
   map_accumulate_ea(
@@ -355,9 +368,37 @@ map_ea <- function(.x, .f, ...,
     .init = NULL,
     .f2_format = .f_format,
     .clobberable_versions_start = .clobberable_versions_start,
+    .versions_end = .versions_end,
     .compactify_tol = .compactify_tol,
     .progress = .progress
   )[[2L]] # ignore final accumulator value
+}
+
+epix_epi_slide_opt <-
+  function(.x, .col_names, .f, ...,
+           .window_size = NULL, .align = c("right", "center", "left"),
+           .prefix = NULL, .suffix = NULL, .new_col_names = NULL,
+           .ref_time_values = NULL, .all_rows = FALSE) {
+  UseMethod("epix_epi_slide_opt")
+}
+
+epix_epi_slide_opt.grouped_epi_archive <- function(.x, ...) {
+  assert_set_equal(group_vars(.x),
+                   key_colnames(.x, exclude = c("time_value", "version")))
+  orig_group_vars <- group_vars(.x)
+  orig_drop <- .x$private$drop
+  .x %>%
+    ungroup() %>%
+    epix_epi_slide_opt(...) %>%
+    group_by(pick(all_of(orig_group_vars)), .drop = orig_drop)
+}
+
+epix_epi_slide_opt.epi_archive <-
+  function(.x, .col_names, .f, ...,
+           .window_size = NULL, .align = c("right", "center", "left"),
+           .prefix = NULL, .suffix = NULL, .new_col_names = NULL,
+           .ref_time_values = NULL, .all_rows = FALSE) {
+  
 }
 
 # XXX as_slide_computation rather than as_mapper? gets messy with map_accumulate_ea

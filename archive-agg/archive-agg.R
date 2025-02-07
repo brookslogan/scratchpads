@@ -98,7 +98,7 @@ archive_with_7dsum <-
 
 DT = copy(two_archive$DT)
 bench::mark(
-  DT[, list(data = list(.SD)), keyby = "version"],
+  DT[, list(data = list(.SD)), keyby = "version"], # FIXME might fail with single rows.... .SD not the right type? no, that's a printing artifact
   nest(DT, data = -version) %>% setkeyv("version"),
   nest_by(DT, version) |> ungroup(),
   check = FALSE # at least some inner keying differences
