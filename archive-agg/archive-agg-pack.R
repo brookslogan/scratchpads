@@ -235,7 +235,7 @@ epi_patch <- function(snapshot, update) {
   result_tbl <- result_tbl[not_overwritten,]
 
   result_tbl <- reclass(result_tbl, update_metadata)
-  result_tbl <- arrange_canonical(result_tbl)
+  ## result_tbl <- arrange_canonical(result_tbl)
 
   result_tbl
 }
@@ -400,37 +400,68 @@ epix_epi_slide_opt.epi_archive <-
            ## , .ref_time_values = NULL, .all_rows = FALSE
            ) {
     other_keys <- key_colnames(.x, exclude = c("geo_value", "time_value", "version"))
+    epikey_names <- c("geo_value", other_keys)
+    .align <- arg_match(.align)
+    window_args <- epiprocess:::get_before_after_from_window(.window_size, .align, time_type)
+    time_type <- .x$time_type
+    unit_step <- unit_time_delta(time_type, "fast")
     input_updates <- .x$DT[, list(updateDT = list(.SD)), keyby = version]
-  map_accumulate_ea(
-    .init = NULL,
-    .x = seq_len(nrow(updates)),
-    .f2_format = "update",
-    .clobberable_versions_start = .x$clobberable_versions_start,
-    .versions_end = .x$versions_end,
-    ## .compactify_tol = 0, .progress = FALSE,
-    ...,
-    function(previous_input_snapshot, input_update_i, ...) {
-      input_update <- input_updates$updateDT[[input_update_i]]
-      setDF(input_update)
-      input_update <- new_epi_df(input_update, .x$geo_type, .x$time_type,
-                           input_updates$version[[input_update_i]],
-                           other_keys)
-      input_snapshot <-
-        if (is.null(previous_input_snapshot)) {
-          input_update
-        } else {
-          epi_patch(previous_input_snapshot, input_update)
-        }
+    map_accumulate_ea(
+      .init = NULL,
+      .x = seq_len(nrow(updates)),
+      .f2_format = "update",
+      .clobberable_versions_start = .x$clobberable_versions_start,
+      .versions_end = .x$versions_end,
+      ## .compactify_tol = 0, .progress = FALSE,
+      ...,
+      function(previous_input_snapshot, input_update_i, ...) {
+        input_update <- input_updates$updateDT[[input_update_i]]
+        setDF(input_update)
+        input_update <- new_epi_df(input_update, .x$geo_type, .x$time_type,
+                                   input_updates$version[[input_update_i]],
+                                   other_keys)
+        input_snapshot <-
+          if (is.null(previous_input_snapshot)) {
+            input_update
+          } else {
+            epi_patch(previous_input_snapshot, input_update)
+          }
 
-      output_snapshot <- epi_slide_opt(
-        input_snapshot, {{.col_names}}, .f, ...,
-        .window_size = .window_size, .align = .align,
-        .prefix = .prefix, .suffix = .suffix, .new_col_names = .new_col_names
-      )
-      # TODO: smart windowing, epi_slide_opt, remove junk from smart windowing
+        ## output_snapshot <- epi_slide_opt(
+        ##   input_snapshot, {{.col_names}}, .f, ...,
+        ##   .window_size = .window_size, .align = .align,
+        ##   .prefix = .prefix, .suffix = .suffix, .new_col_names = .new_col_names
+        ## )
 
-      list(input_snapshot, output_snapshot)
-    }
+        input_update_ranges <- input_update %>%
+          summarize(.by = all_of(epikey_names),
+                    min_time_value = min(time_value),
+                    max_time_value = max(time_value))
+
+        # If our computation window for ref_time_value t is [t-w1..t+w2], and we
+        # have input updates in t1..t2, then we may have output updates from
+        # [t1-w2..t2+w1], and to compute those values, we need input from the
+        # range [t1-w2-w1..t2+w1+w2].
+        output_ranges <- input_update_ranges %>%
+          mutate(min_time_value = min_time_value - window_args$after * unit_step,
+                 max_time_value = max_time_value + window_args$before * unit_step)
+        input_required_ranges <- input_update_ranges %>%
+          mutate(min_time_value = min_time_value - .window_size * unit_step,
+                 max_time_value = max_time_value + .window_size * unit_step)
+
+        output_update <- input_snapshot %>%
+          semi_join(input_required_ranges, join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value)))
+        output_update <- output_update %>%
+          epi_slide_opt(
+            {{.col_names}}, .f, ...,
+            .window_size = .window_size, .align = .align,
+            .prefix = .prefix, .suffix = .suffix, .new_col_names = .new_col_names
+          )
+        output_update <- output_update %>%
+          semi_join(output_ranges, join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value)))
+
+        list(input_snapshot, output_update)
+      }
   )[[2L]]
 }
 
@@ -465,19 +496,61 @@ map_accumulate_ea(list(edf1, edf2),
 
 map_ea(list(edf1, edf2), identity, .f_format = "update")
 
-system.time(
-  mean_archive1 <- archive_cases_dv_subset %>%
+test_archive <- archive_cases_dv_subset
+test_archive$DT <- test_archive$DT[version <= time_value + 60]
+
+system.time({
+  mean_archive1 <- test_archive %>%
     epix_slide(~ .x %>% epi_slide_mean(percent_cli, .window_size = 7)) %>%
     as_epi_archive()
-)
+  setcolorder(mean_archive1$DT)
+})
 
 system.time(
-  mean_archive2 <- archive_cases_dv_subset %>%
+  mean_archive2 <- test_archive %>%
     epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
 )
 
 all.equal(mean_archive1, mean_archive2)
 
+jointprof::joint_pprof({
+  withDTthreads(1, {
+    mean_archive1 <- test_archive %>%
+      epix_slide(~ .x %>% epi_slide_mean(percent_cli, .window_size = 7)) %>%
+      as_epi_archive()
+    setcolorder(mean_archive1$DT)
+  })
+})
+
+jointprof::joint_pprof({
+  withDTthreads(1, {
+    mean_archive2 <- test_archive %>%
+      epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
+  })
+})
+
+
+## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(epi_slide_opt, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
+## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(arrange, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
+## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(dplyr::arrange, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
+## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(arrange_row_canonical, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
+.GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(semi_join, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
+.GlobalEnv[["dt2"]] <- as.difftime(0, units = "secs"); trace(epix_epi_slide_opt, tracer = quote({.GlobalEnv[["t2"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt2"]] <- .GlobalEnv[["dt2"]] + (Sys.time() - t2)}))
+## profvis::profvis({
+withDTthreads(1, {
+  mean_archive2 <- test_archive %>%
+    epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
+})
+## })
+## untrace(epi_slide_opt)
+## untrace(arrange)
+## untrace(dplyr::arrange)
+## untrace(arrange_row_canonical)
+untrace(semi_join)
+untrace(epix_epi_slide_opt)
+dt1
+dt2
+# TODO arg forcing before recording start times
 
 # TODO reconsider terminology... "update" vs. "patch" vs. "diff", etc.; want
 # something that applies to
