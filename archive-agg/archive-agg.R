@@ -2772,3 +2772,11 @@ all.equal(
   }) %>% bind_rows() %>% as_epi_archive(compactify_abs_tol = 0),
   map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l, .compactify_tol = 0)
 )
+
+
+update_401 <- epi_diff2(snapshots$slide_value[[400]], snapshots$slide_value[[401]])
+
+bench::mark(
+  epi_patch(snapshots$slide_value[[400]], update_401),
+  min_time = 3
+)

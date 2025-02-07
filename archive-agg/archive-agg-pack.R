@@ -228,13 +228,11 @@ epi_patch <- function(snapshot, update) {
 
   ekt_names <- c("geo_value", snapshot_metadata$other_keys, "time_value")
 
-  result_tbl <- vec_rbind(as_tibble(snapshot), as_tibble(update))
+  result_tbl <- vec_rbind(as_tibble(update), as_tibble(snapshot))
 
   dup_ids <- vec_duplicate_id(result_tbl[ekt_names])
-  overwritten_inds <- dup_ids[dup_ids != vec_seq_along(result_tbl)]
-  if (length(overwritten_inds) != 0) {
-    result_tbl <- result_tbl[-overwritten_inds,]
-  }
+  not_overwritten <- dup_ids == vec_seq_along(result_tbl)
+  result_tbl <- result_tbl[not_overwritten,]
 
   result_tbl <- reclass(result_tbl, update_metadata)
   result_tbl <- arrange_canonical(result_tbl)
@@ -339,6 +337,10 @@ epi_diff2(edf1, edf2)
 epi_diff2(edf1, edf2, input_format = "update")
 
 epi_patch(edf1, epi_diff2(edf1, edf2))
+
+epi_patch(edf1, epi_diff2(edf1, edf2)) %>%
+  filter(!is.na(value)) %>%
+  waldo::compare(edf2)
 
 map_ea(snapshots$slide_value, identity)
 
