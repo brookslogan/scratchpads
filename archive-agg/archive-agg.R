@@ -2776,7 +2776,19 @@ all.equal(
 
 update_401 <- epi_diff2(snapshots$slide_value[[400]], snapshots$slide_value[[401]])
 
+
+bench::mark(
+  epi_diff2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]),
+  min_time = 6
+)
+
 bench::mark(
   epi_patch(snapshots$slide_value[[400]], update_401),
-  min_time = 3
+  min_time = 6
 )
+
+jointprof::joint_pprof({
+  withDTthreads(1, {
+    replicate(100, { epi_patch(snapshots$slide_value[[400]], update_401); 42})
+  })
+})
