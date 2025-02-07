@@ -240,28 +240,40 @@ epi_patch <- function(snapshot, update) {
   result_tbl
 }
 
-map_ea <- function(.x, .f, ...,
-                   .f_format = c("snapshot", "update"),
-                   .clobberable_versions_start = NA,
-                   .compactify_tol = 0,
-                   .progress = FALSE) {
+map_accumulate_ea <- function(.x, .f, ...,
+                              .init,
+                              .f2_format = c("snapshot", "update"),
+                              .clobberable_versions_start = NA,
+                              .compactify_tol = 0,
+                              .progress = FALSE) {
   if (length(.x) == 0L) {
     cli_abort("`.x` must have positive length")
   }
 
   .f <- as_mapper(.f)
-  .f_format <- arg_match(.f_format)
+  .f2_format <- arg_match(.f2_format)
 
+  previous_accumulator <- .init
   other_keys <- NULL
   previous_version <- NULL
   previous_snapshot <- NULL
   diffs <- map(.x, .progress = .progress, .f = function(.x_entry) {
-    .f_output <- .f(.x_entry, ...)
-    if (is_epi_df(.f_output)) {
-      version <- attr(.f_output, "metadata")[["as_of"]]
+    .f_output <- .f(previous_accumulator, .x_entry, ...)
+
+    if (!(is.list(.f_output) && length(.f_output) == 2L)) {
+      cli_abort("`.f` must output a list of length 2 (new accumulator value
+                 followed by a snapshot/update)")
+    }
+    .f_output2 <- .f_output[[2L]]
+
+    if (is_epi_df(.f_output2)) {
+      version <- attr(.f_output2, "metadata")[["as_of"]]
     } else {
-      cli_abort("`.f` produced an unsupported class:
-                 {epiprocess:::format_chr_deparse(class(.f_output))}")
+      cli_abort('`.f` produced
+        {c("snapshot" = "a snapshot", "update" = "an update")[[.f2_format]]}
+        of an unsupported class:
+        {epiprocess:::format_chr_deparse(class(.f_output2))}
+      ')
     }
 
     if (!is.null(previous_version) && previous_version >= version) {
@@ -278,26 +290,27 @@ map_ea <- function(.x, .f, ...,
 
     # Calculate diff with epikeytimeversion + value columns; we'll
     if (is.null(previous_snapshot)) {
-      other_keys <<- attr(.f_output, "metadata")[["other_keys"]]
-      diff <- .f_output
+      other_keys <<- attr(.f_output2, "metadata")[["other_keys"]]
+      diff <- .f_output2
     } else {
-      diff <- epi_diff2(previous_snapshot, .f_output,
-                        input_format = .f_format,
+      diff <- epi_diff2(previous_snapshot, .f_output2,
+                        input_format = .f2_format,
                         compactify_tol = .compactify_tol)
     }
 
     # We'll need to diff any following outputs against an actual snapshot:
     snapshot <-
-      if (.f_format == "snapshot") {
-        .f_output
-      } else { # .f_format == "update"
+      if (.f2_format == "snapshot") {
+        .f_output2
+      } else { # .f2_format == "update"
         if (is.null(previous_snapshot)) {
-          .f_output
+          .f_output2
         } else {
-          epi_patch(previous_snapshot, .f_output)
+          epi_patch(previous_snapshot, .f_output2)
         }
       }
 
+    previous_accumulator <<- .f_output[[1L]]
     previous_version <<- version
     previous_snapshot <<- snapshot
 
@@ -316,14 +329,40 @@ map_ea <- function(.x, .f, ...,
   diffs <- as.data.table(diffs, key = c("geo_value", other_keys, "time_value", "version"))
   setcolorder(diffs) # default: key first, then value cols
 
-  as_epi_archive(
+  diffs <- as_epi_archive(
     diffs,
     other_keys = other_keys,
     clobberable_versions_start = .clobberable_versions_start,
     versions_end = previous_version,
     compactify = FALSE # we already compactified; don't re-do work or change tol
   )
+
+  list(previous_accumulator, diffs)
 }
+
+map_ea <- function(.x, .f, ...,
+                   .f_format = c("snapshot", "update"),
+                   .clobberable_versions_start = NA,
+                   .compactify_tol = 0,
+                   .progress = FALSE) {
+  map_accumulate_ea(
+    .x,
+    function(.x, .y, ...) {
+      # ignore previous accumulator value, add accumulator value to ignore:
+      list(NULL, .f(.y, ...))
+    },
+    ...,
+    .init = NULL,
+    .f2_format = .f_format,
+    .clobberable_versions_start = .clobberable_versions_start,
+    .compactify_tol = .compactify_tol,
+    .progress = .progress
+  )[[2L]] # ignore final accumulator value
+}
+
+# XXX as_slide_computation rather than as_mapper? gets messy with map_accumulate_ea
+
+# XXX somehow refactor out the output-diffing ("_ea") part?
 
 edf1 <- as_epi_df(tibble(geo_value = 1, time_value = 1:3, value = 1:3),
                   as_of = 5L)
@@ -345,6 +384,10 @@ epi_patch(edf1, epi_diff2(edf1, edf2)) %>%
 map_ea(snapshots$slide_value, identity)
 
 map_ea(list(edf1, edf2), identity)
+
+map_accumulate_ea(list(edf1, edf2),
+                  function(accu, edf) list(paste(accu, attr(edf, "metadata")$as_of), edf),
+                  .init = "")
 
 map_ea(list(edf1, edf2), identity, .f_format = "update")
 
