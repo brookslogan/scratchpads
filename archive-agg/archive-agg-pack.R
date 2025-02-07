@@ -398,7 +398,28 @@ epix_epi_slide_opt.epi_archive <-
            .window_size = NULL, .align = c("right", "center", "left"),
            .prefix = NULL, .suffix = NULL, .new_col_names = NULL,
            .ref_time_values = NULL, .all_rows = FALSE) {
-  
+    other_keys <- key_colnames(.x, exclude = c("geo_value", "time_value", "version"))
+    updates <- .x$DT[, list(updateDT = list(.SD)), keyby = version]
+  map_accumulate_ea(
+    .init = NULL,
+    .x = seq_len(nrow(updates)),
+    .f2_format = "update",
+    .clobberable_versions_start = .x$clobberable_versions_start,
+    .versions_end = .x$versions_end,
+    ## .compactify_tol = 0, .progress = FALSE,
+    ...,
+    function(previous_snapshot, update_i, ...) {
+      # accu previous_snapshot probably should be without its slide value col
+      update <- updates$updateDT[[update_i]]
+      setDF(update)
+      update <- new_epi_df(update, .x$geo_type, .x$time_type,
+                           updates$version[[update_i]],
+                           other_keys)
+      # TODO: patch snapshot, smart windowing, epi_slide_opt, remove junk from
+      # smart windowing
+      stop("TODO")
+    }
+  )[[2L]]
 }
 
 # XXX as_slide_computation rather than as_mapper? gets messy with map_accumulate_ea
