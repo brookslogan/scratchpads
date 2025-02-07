@@ -322,12 +322,12 @@ map_accumulate_ea <- function(.x, .f, ...,
   })
 
   # More validation&defaults we can only do now:
-  if (is.null(versions_end)) {
-    versions_end <- previous_version
-  } else if (versions_end < previous_version) {
+  if (is.null(.versions_end)) {
+    .versions_end <- previous_version
+  } else if (.versions_end < previous_version) {
     cli_abort(c(
-      "Specified `versions_end` was earlier than the final `as_of`.",
-      "*" = "`versions_end`: {versions_end}",
+      "Specified `.versions_end` was earlier than the final `as_of`.",
+      "*" = "`.versions_end`: {.versions_end}",
       "*" = "Final `as_of`: {previous_version}"
     ))
   }
@@ -345,7 +345,7 @@ map_accumulate_ea <- function(.x, .f, ...,
     diffs,
     other_keys = other_keys,
     clobberable_versions_start = .clobberable_versions_start,
-    versions_end = versions_end,
+    versions_end = .versions_end,
     compactify = FALSE # we already compactified; don't re-do work or change tol
   )
 
@@ -396,10 +396,11 @@ epix_epi_slide_opt.grouped_epi_archive <- function(.x, ...) {
 epix_epi_slide_opt.epi_archive <-
   function(.x, .col_names, .f, ...,
            .window_size = NULL, .align = c("right", "center", "left"),
-           .prefix = NULL, .suffix = NULL, .new_col_names = NULL,
-           .ref_time_values = NULL, .all_rows = FALSE) {
+           .prefix = NULL, .suffix = NULL, .new_col_names = NULL
+           ## , .ref_time_values = NULL, .all_rows = FALSE
+           ) {
     other_keys <- key_colnames(.x, exclude = c("geo_value", "time_value", "version"))
-    updates <- .x$DT[, list(updateDT = list(.SD)), keyby = version]
+    input_updates <- .x$DT[, list(updateDT = list(.SD)), keyby = version]
   map_accumulate_ea(
     .init = NULL,
     .x = seq_len(nrow(updates)),
@@ -408,16 +409,27 @@ epix_epi_slide_opt.epi_archive <-
     .versions_end = .x$versions_end,
     ## .compactify_tol = 0, .progress = FALSE,
     ...,
-    function(previous_snapshot, update_i, ...) {
-      # accu previous_snapshot probably should be without its slide value col
-      update <- updates$updateDT[[update_i]]
-      setDF(update)
-      update <- new_epi_df(update, .x$geo_type, .x$time_type,
-                           updates$version[[update_i]],
+    function(previous_input_snapshot, input_update_i, ...) {
+      input_update <- input_updates$updateDT[[input_update_i]]
+      setDF(input_update)
+      input_update <- new_epi_df(input_update, .x$geo_type, .x$time_type,
+                           input_updates$version[[input_update_i]],
                            other_keys)
-      # TODO: patch snapshot, smart windowing, epi_slide_opt, remove junk from
-      # smart windowing
-      stop("TODO")
+      input_snapshot <-
+        if (is.null(previous_input_snapshot)) {
+          input_update
+        } else {
+          epi_patch(previous_input_snapshot, input_update)
+        }
+
+      output_snapshot <- epi_slide_opt(
+        input_snapshot, {{.col_names}}, .f, ...,
+        .window_size = .window_size, .align = .align,
+        .prefix = .prefix, .suffix = .suffix, .new_col_names = .new_col_names
+      )
+      # TODO: smart windowing, epi_slide_opt, remove junk from smart windowing
+
+      list(input_snapshot, output_snapshot)
     }
   )[[2L]]
 }
@@ -452,6 +464,20 @@ map_accumulate_ea(list(edf1, edf2),
                   .init = "")
 
 map_ea(list(edf1, edf2), identity, .f_format = "update")
+
+system.time(
+  mean_archive1 <- archive_cases_dv_subset %>%
+    epix_slide(~ .x %>% epi_slide_mean(percent_cli, .window_size = 7)) %>%
+    as_epi_archive()
+)
+
+system.time(
+  mean_archive2 <- archive_cases_dv_subset %>%
+    epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
+)
+
+all.equal(mean_archive1, mean_archive2)
+
 
 # TODO reconsider terminology... "update" vs. "patch" vs. "diff", etc.; want
 # something that applies to
