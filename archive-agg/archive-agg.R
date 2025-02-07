@@ -2792,3 +2792,30 @@ jointprof::joint_pprof({
     replicate(100, { epi_patch(snapshots$slide_value[[400]], update_401); 42})
   })
 })
+
+# epix_epi_slide ...
+#
+# Which needed?:
+# - update
+# - snapshot
+# - previous_snapshot
+#
+# Will get an update w/o 7dav, determine context bounds needed from
+# previous_snapshot w/o 7dav, and combine/apply update atop previous_snapshot
+# context 7dav... or just filter context from snapshot w/o 7dav, except that's
+# probably not going to be available w/o an interface already assuming this
+# specific sort of operation. Then filter out trash values. Then record update.
+#
+# ea_map(updates_wo_7dav, function(update_wo_7dav, previous_snapshot) {
+#   ...
+# })
+#
+# Might need to call function a different name or add an arg to toggle as to not
+# mess up .x-only function-based mappers / ones with extra args but not .y.
+#
+# What's the appropriate name for this?  Is it analogous to purrr::accumulate?
+#
+# What about calibration? Do we want the ability to control what is passed on to
+# the next function and what is recorded, making functions return a length-2
+# list? Seems like OCaml calls this fold_left_map, and
+# Haskell calls this mapAccumL/R.
