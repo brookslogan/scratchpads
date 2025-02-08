@@ -408,7 +408,7 @@ epix_epi_slide_opt.epi_archive <-
     input_updates <- .x$DT[, list(updateDT = list(.SD)), keyby = version]
     map_accumulate_ea(
       .init = NULL,
-      .x = seq_len(nrow(updates)),
+      .x = seq_len(nrow(input_updates)),
       .f2_format = "update",
       .clobberable_versions_start = .x$clobberable_versions_start,
       .versions_end = .x$versions_end,
