@@ -460,6 +460,8 @@ epix_epi_slide_opt.epi_archive <-
         output_update <- output_update %>%
           semi_join(output_ranges, join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value)))
 
+        print(nrow(output_update)/nrow(input_snapshot) * 100)
+
         list(input_snapshot, output_update)
       }
   )[[2L]]
@@ -498,34 +500,42 @@ map_ea(list(edf1, edf2), identity, .f_format = "update")
 
 test_archive <- archive_cases_dv_subset
 test_archive$DT <- test_archive$DT[version <= time_value + 60]
+test_signals <- "percent_cli"
+
+test_archive <- case_death_rate_archive
+test_signals <- "case_rate"
 
 system.time({
   mean_archive1 <- test_archive %>%
-    epix_slide(~ .x %>% epi_slide_mean(percent_cli, .window_size = 7)) %>%
+    epix_slide(~ .x %>% epi_slide_mean(all_of(test_signals), .window_size = 7)) %>%
     as_epi_archive()
   setcolorder(mean_archive1$DT)
 })
 
 system.time(
   mean_archive2 <- test_archive %>%
-    epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
+    epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
 )
 
 all.equal(mean_archive1, mean_archive2)
 
 jointprof::joint_pprof({
-  withDTthreads(1, {
-    mean_archive1 <- test_archive %>%
-      epix_slide(~ .x %>% epi_slide_mean(percent_cli, .window_size = 7)) %>%
-      as_epi_archive()
-    setcolorder(mean_archive1$DT)
+  system.time({
+    withDTthreads(1, {
+      mean_archive1 <- test_archive %>%
+        epix_slide(~ .x %>% epi_slide_mean(all_of(test_signals), .window_size = 7)) %>%
+        as_epi_archive()
+      setcolorder(mean_archive1$DT)
+    })
   })
 })
 
 jointprof::joint_pprof({
-  withDTthreads(1, {
-    mean_archive2 <- test_archive %>%
-      epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
+  system.time({
+    withDTthreads(1, {
+      mean_archive2 <- test_archive %>%
+        epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
+    })
   })
 })
 
