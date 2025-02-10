@@ -406,6 +406,7 @@ epix_epi_slide_opt.epi_archive <-
     time_type <- .x$time_type
     unit_step <- unit_time_delta(time_type, "fast")
     input_updates <- .x$DT[, list(updateDT = list(.SD)), keyby = version]
+    ek_t_range_by <- join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value))
     map_accumulate_ea(
       .init = NULL,
       .x = seq_len(nrow(input_updates)),
@@ -435,6 +436,7 @@ epix_epi_slide_opt.epi_archive <-
         ## )
 
         input_update_ranges <- input_update %>%
+          # XXX vs. computing while still DT
           summarize(.by = all_of(epikey_names),
                     min_time_value = min(time_value),
                     max_time_value = max(time_value))
@@ -443,16 +445,22 @@ epix_epi_slide_opt.epi_archive <-
         # have input updates in t1..t2, then we may have output updates from
         # [t1-w2..t2+w1], and to compute those values, we need input from the
         # range [t1-w2-w1..t2+w1+w2].
+        input_required_ranges <- input_update_ranges %>%
+          # XXX vs. requesting only the stuff not already in the update, either
+          # via ranges or via seqs + regular join?
+          mutate(min_time_value = min_time_value - .window_size * unit_step,
+                 max_time_value = max_time_value + .window_size * unit_step)
         output_ranges <- input_update_ranges %>%
           mutate(min_time_value = min_time_value - window_args$after * unit_step,
                  max_time_value = max_time_value + window_args$before * unit_step)
-        input_required_ranges <- input_update_ranges %>%
-          mutate(min_time_value = min_time_value - .window_size * unit_step,
-                 max_time_value = max_time_value + .window_size * unit_step)
 
         .GlobalEnv[["debug_env"]] <- environment() # TODO remove
+        #
+        # XXX vs. keeping input_snapshot as DT throughout (adjust epi_patch)
+        # attempting to keep key / to see if without key its join options are
+        # faster?
         output_update <- input_snapshot %>%
-          semi_join(input_required_ranges, join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value)))
+          semi_join(input_required_ranges, ek_t_range_by)
         output_update <- output_update %>%
           epi_slide_opt(
             {{.col_names}}, .f, ...,
@@ -460,7 +468,8 @@ epix_epi_slide_opt.epi_archive <-
             .prefix = .prefix, .suffix = .suffix, .new_col_names = .new_col_names
           )
         output_update <- output_update %>%
-          semi_join(output_ranges, join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value)))
+          # XXX vs. .real-style approach
+          semi_join(output_ranges, ek_t_range_by)
 
         print(nrow(output_update)/nrow(input_snapshot) * 100) # TODO remove
 
