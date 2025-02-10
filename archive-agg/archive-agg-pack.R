@@ -421,17 +421,23 @@ epix_epi_slide_opt.epi_archive <-
         # between this and epi_slide_opt call?
 
         input_update <- input_updates$updateDT[[input_update_i]]
+
         input_update_ranges <- input_update[
         , list(min_time_value = min(time_value),
                max_time_value = max(time_value)),
           by = c(epikey_names) # `c` acts like `..` here
         ]
         setDF(input_update_ranges)
+
         setDF(input_update)
         input_update <- new_epi_df(new_tibble(input_update),
                                    .x$geo_type, .x$time_type,
                                    input_updates$version[[input_update_i]],
                                    other_keys)
+
+        ## input_update_min_time_value <- min(input_update$time_value)
+        ## input_update_max_time_value <- max(input_update$time_value)
+
         input_snapshot <-
           if (is.null(previous_input_snapshot)) {
             input_update
@@ -449,14 +455,19 @@ epix_epi_slide_opt.epi_archive <-
         # have input updates in t1..t2, then we may have output updates from
         # [t1-w2..t2+w1], and to compute those values, we need input from the
         # range [t1-w2-w1..t2+w1+w2].
-        input_required_ranges <- input_update_ranges %>%
-          # XXX vs. requesting only the stuff not already in the update, either
-          # via ranges or via seqs + regular join?  remember gaps
-          mutate(min_time_value = min_time_value - .window_size * unit_step,
-                 max_time_value = max_time_value + .window_size * unit_step)
-        output_ranges <- input_update_ranges %>%
-          mutate(min_time_value = min_time_value - window_args$after * unit_step,
-                 max_time_value = max_time_value + window_args$before * unit_step)
+        #
+        # XXX vs. requesting only the stuff not already in the update, either
+        # via ranges or via seqs + regular join?  remember gaps
+        input_required_ranges <- input_update_ranges
+        input_required_ranges$min_time_value <-
+          input_required_ranges$min_time_value - .window_size * unit_step
+        input_required_ranges$max_time_value <-
+          input_required_ranges$max_time_value + .window_size * unit_step
+        output_ranges <- input_update_ranges
+        output_ranges$min_time_value <-
+          output_ranges$min_time_value - window_args$after * unit_step
+        output_ranges$max_time_value <-
+          output_ranges$max_time_value + window_args$before * unit_step
 
         .GlobalEnv[["debug_env"]] <- environment() # TODO remove
         #
@@ -563,6 +574,15 @@ jointprof::joint_pprof({
 
 all.equal(mean_archive1, mean_archive2)
 
+profvis::profvis({
+  print(system.time({
+    withDTthreads(1, {
+      mean_archive2 <- test_archive %>%
+        epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
+    })
+  }))
+})
+
 ## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(epi_slide_opt, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
 ## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(arrange, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
 ## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(dplyr::arrange, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
@@ -593,8 +613,8 @@ all.equal(mean_archive1, mean_archive2)
 # another way
 
 # TODO try these out
-list(
-  input_snapshot_dtbl[input_required_ranges, on = c("geo_value", "time_value>=min_time_value", "time_value<=max_time_value"), nomatch = NULL] %>% as.data.frame() %>% as_tibble() %>% arrange(geo_value, time_value),
-  foverlaps(input_snapshot_dtbl2, input_required_ranges_dtbl2, type = "within", nomatch = NULL) %>% as.data.frame() %>% as_tibble() %>% arrange(geo_value, time_value) %>% select(!c(min_time_value, max_time_value, time_value2)),
-  input_snapshot %>% semi_join(input_required_ranges, ek_t_range_by) %>% arrange(geo_value, time_value)
-)
+## list(
+##   input_snapshot_dtbl[input_required_ranges, on = c("geo_value", "time_value>=min_time_value", "time_value<=max_time_value"), nomatch = NULL] %>% as.data.frame() %>% as_tibble() %>% arrange(geo_value, time_value),
+##   foverlaps(input_snapshot_dtbl2, input_required_ranges_dtbl2, type = "within", nomatch = NULL) %>% as.data.frame() %>% as_tibble() %>% arrange(geo_value, time_value) %>% select(!c(min_time_value, max_time_value, time_value2)),
+##   input_snapshot %>% semi_join(input_required_ranges, ek_t_range_by) %>% arrange(geo_value, time_value)
+## )
