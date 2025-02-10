@@ -416,7 +416,16 @@ epix_epi_slide_opt.epi_archive <-
       ## .compactify_tol = 0, .progress = FALSE,
       ...,
       function(previous_input_snapshot, input_update_i, ...) {
+        # XXX refactor to avoid similar window completion & "decompletion"
+        # between this and epi_slide_opt call?
+
         input_update <- input_updates$updateDT[[input_update_i]]
+        input_update_ranges <- input_update[
+        , list(min_time_value = min(time_value),
+               max_time_value = max(time_value)),
+          by = c(epikey_names) # `c` acts like `..` here
+        ]
+        setDF(input_update_ranges)
         setDF(input_update)
         input_update <- new_epi_df(new_tibble(input_update),
                                    .x$geo_type, .x$time_type,
@@ -435,19 +444,13 @@ epix_epi_slide_opt.epi_archive <-
         ##   .prefix = .prefix, .suffix = .suffix, .new_col_names = .new_col_names
         ## )
 
-        input_update_ranges <- input_update %>%
-          # XXX vs. computing while still DT
-          summarize(.by = all_of(epikey_names),
-                    min_time_value = min(time_value),
-                    max_time_value = max(time_value))
-
         # If our computation window for ref_time_value t is [t-w1..t+w2], and we
         # have input updates in t1..t2, then we may have output updates from
         # [t1-w2..t2+w1], and to compute those values, we need input from the
         # range [t1-w2-w1..t2+w1+w2].
         input_required_ranges <- input_update_ranges %>%
           # XXX vs. requesting only the stuff not already in the update, either
-          # via ranges or via seqs + regular join?
+          # via ranges or via seqs + regular join?  remember gaps
           mutate(min_time_value = min_time_value - .window_size * unit_step,
                  max_time_value = max_time_value + .window_size * unit_step)
         output_ranges <- input_update_ranges %>%
