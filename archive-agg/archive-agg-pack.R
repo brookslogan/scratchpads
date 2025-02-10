@@ -417,7 +417,8 @@ epix_epi_slide_opt.epi_archive <-
       function(previous_input_snapshot, input_update_i, ...) {
         input_update <- input_updates$updateDT[[input_update_i]]
         setDF(input_update)
-        input_update <- new_epi_df(input_update, .x$geo_type, .x$time_type,
+        input_update <- new_epi_df(new_tibble(input_update),
+                                   .x$geo_type, .x$time_type,
                                    input_updates$version[[input_update_i]],
                                    other_keys)
         input_snapshot <-
