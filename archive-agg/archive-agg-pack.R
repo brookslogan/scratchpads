@@ -402,10 +402,11 @@ epix_epi_slide_opt.epi_archive <-
     other_keys <- key_colnames(.x, exclude = c("geo_value", "time_value", "version"))
     epikey_names <- c("geo_value", other_keys)
     .align <- arg_match(.align)
-    window_args <- epiprocess:::get_before_after_from_window(.window_size, .align, time_type)
+    window_args <- epiprocess:::get_before_after_from_window(.window_size, .align, time_type) # TODO drop epiprocess:::
     time_type <- .x$time_type
     unit_step <- unit_time_delta(time_type, "fast")
     input_updates <- .x$DT[, list(updateDT = list(.SD)), keyby = version]
+    # TODO vs. just a global time range + a .real approach?
     ek_t_range_by <- join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value))
     map_accumulate_ea(
       .init = NULL,
@@ -590,3 +591,10 @@ all.equal(mean_archive1, mean_archive2)
 # compact/minimal-diffs if not compact/minimal, and to not clobber potential
 # class constructors with functions that work with / generate those objects in
 # another way
+
+# TODO try these out
+list(
+  input_snapshot_dtbl[input_required_ranges, on = c("geo_value", "time_value>=min_time_value", "time_value<=max_time_value"), nomatch = NULL] %>% as.data.frame() %>% as_tibble() %>% arrange(geo_value, time_value),
+  foverlaps(input_snapshot_dtbl2, input_required_ranges_dtbl2, type = "within", nomatch = NULL) %>% as.data.frame() %>% as_tibble() %>% arrange(geo_value, time_value) %>% select(!c(min_time_value, max_time_value, time_value2)),
+  input_snapshot %>% semi_join(input_required_ranges, ek_t_range_by) %>% arrange(geo_value, time_value)
+)
