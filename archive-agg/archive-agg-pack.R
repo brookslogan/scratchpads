@@ -618,3 +618,5 @@ profvis::profvis({
 ##   foverlaps(input_snapshot_dtbl2, input_required_ranges_dtbl2, type = "within", nomatch = NULL) %>% as.data.frame() %>% as_tibble() %>% arrange(geo_value, time_value) %>% select(!c(min_time_value, max_time_value, time_value2)),
 ##   input_snapshot %>% semi_join(input_required_ranges, ek_t_range_by) %>% arrange(geo_value, time_value)
 ## )
+
+# TODO try iterating over groups on outside
