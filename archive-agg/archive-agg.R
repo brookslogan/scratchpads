@@ -2618,15 +2618,6 @@ setups <- tribble(
   larger_fewer_snapshots, 1,
   )
 
-withDTthreads <- withr::with_(
-  get = function(new_n_threads) {
-    getDTthreads()
-  },
-  set = function(new_n_threads) {
-    setDTthreads(new_n_threads)
-  }
-)
-
 for (setup_i in seq_len(nrow(setups))) {
   cli::cli_inform("Setup {setup_i}")
   test_snapshots <- setups[[setup_i, "snaps"]][[1]]

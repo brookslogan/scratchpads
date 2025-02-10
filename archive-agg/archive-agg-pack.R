@@ -450,6 +450,7 @@ epix_epi_slide_opt.epi_archive <-
           mutate(min_time_value = min_time_value - .window_size * unit_step,
                  max_time_value = max_time_value + .window_size * unit_step)
 
+        .GlobalEnv[["debug_env"]] <- environment() # TODO remove
         output_update <- input_snapshot %>%
           semi_join(input_required_ranges, join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value)))
         output_update <- output_update %>%
@@ -461,7 +462,7 @@ epix_epi_slide_opt.epi_archive <-
         output_update <- output_update %>%
           semi_join(output_ranges, join_by(!!!epikey_names, between(time_value, min_time_value, max_time_value)))
 
-        print(nrow(output_update)/nrow(input_snapshot) * 100)
+        print(nrow(output_update)/nrow(input_snapshot) * 100) # TODO remove
 
         list(input_snapshot, output_update)
       }
@@ -503,64 +504,72 @@ test_archive <- archive_cases_dv_subset
 test_archive$DT <- test_archive$DT[version <= time_value + 60]
 test_signals <- "percent_cli"
 
-test_archive <- case_death_rate_archive
-test_signals <- "case_rate"
+## test_archive <- case_death_rate_archive
+## test_signals <- "case_rate"
 
-system.time({
-  mean_archive1 <- test_archive %>%
-    epix_slide(~ .x %>% epi_slide_mean(all_of(test_signals), .window_size = 7)) %>%
-    as_epi_archive()
-  setcolorder(mean_archive1$DT)
-})
+## system.time({
+##   mean_archive1 <- test_archive %>%
+##     epix_slide(~ .x %>% epi_slide_mean(all_of(test_signals), .window_size = 7)) %>%
+##     as_epi_archive()
+##   setcolorder(mean_archive1$DT)
+## })
 
-system.time(
-  mean_archive2 <- test_archive %>%
-    epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
+## system.time(
+##   mean_archive2 <- test_archive %>%
+##     epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
+## )
+
+withDTthreads <- withr::with_(
+  get = function(new_n_threads) {
+    getDTthreads()
+  },
+  set = function(new_n_threads) {
+    setDTthreads(new_n_threads)
+  }
 )
 
-all.equal(mean_archive1, mean_archive2)
-
 jointprof::joint_pprof({
-  system.time({
+  print(system.time({
     withDTthreads(1, {
       mean_archive1 <- test_archive %>%
         epix_slide(~ .x %>% epi_slide_mean(all_of(test_signals), .window_size = 7)) %>%
         as_epi_archive()
       setcolorder(mean_archive1$DT)
     })
-  })
+  }))
 })
 
 jointprof::joint_pprof({
-  system.time({
+  print(system.time({
     withDTthreads(1, {
       mean_archive2 <- test_archive %>%
-        epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
+        epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
     })
-  })
+  }))
 })
 
+all.equal(mean_archive1, mean_archive2)
 
 ## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(epi_slide_opt, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
 ## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(arrange, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
 ## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(dplyr::arrange, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
 ## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(arrange_row_canonical, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
-.GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(semi_join, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
-.GlobalEnv[["dt2"]] <- as.difftime(0, units = "secs"); trace(epix_epi_slide_opt, tracer = quote({.GlobalEnv[["t2"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt2"]] <- .GlobalEnv[["dt2"]] + (Sys.time() - t2)}))
+## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(semi_join, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
+## .GlobalEnv[["dt2"]] <- as.difftime(0, units = "secs"); trace(epix_epi_slide_opt, tracer = quote({.GlobalEnv[["t2"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt2"]] <- .GlobalEnv[["dt2"]] + (Sys.time() - t2)}))
 ## profvis::profvis({
-withDTthreads(1, {
-  mean_archive2 <- test_archive %>%
-    epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
-})
+## withDTthreads(1, {
+##   mean_archive2 <- test_archive %>%
+##     epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
+## })
 ## })
 ## untrace(epi_slide_opt)
 ## untrace(arrange)
 ## untrace(dplyr::arrange)
 ## untrace(arrange_row_canonical)
-untrace(semi_join)
-untrace(epix_epi_slide_opt)
-dt1
-dt2
+## untrace(semi_join)
+## untrace(epix_epi_slide_opt)
+## dt1
+## dt2
 # TODO arg forcing before recording start times
 
 # TODO reconsider terminology... "update" vs. "patch" vs. "diff", etc.; want
