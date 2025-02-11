@@ -61,7 +61,6 @@ approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0
   }
 }
 
-
 epi_diff2 <- function(earlier_edf, later_edf,
                       input_format = c("snapshot", "update"),
                       compactify_tol = 0) {
@@ -493,6 +492,93 @@ epix_epi_slide_opt.epi_archive <-
   )[[2L]]
 }
 
+epix_epi_slide_opt2 <-
+  function(.x, .col_names, .f, ...,
+           .window_size = NULL, .align = c("right", "center", "left"),
+           .prefix = NULL, .suffix = NULL, .new_col_names = NULL
+           ## , .ref_time_values = NULL, .all_rows = FALSE
+           ) {
+    other_keys <- key_colnames(.x, exclude = c("geo_value", "time_value", "version"))
+    epikey_names <- c("geo_value", other_keys)
+    .align <- arg_match(.align)
+    window_args <- epiprocess:::get_before_after_from_window(.window_size, .align, time_type) # TODO drop epiprocess:::
+    time_type <- .x$time_type
+    unit_step <- unit_time_delta(time_type, "fast")
+    input_groups <- .x$DT[, list(groupDT = list(.SD)), keyby = c(epikey_names), .SDcols = names(.x$DT)]
+    # XXX removing overhead from keeping around grouping, stopping from
+    # reconstructing trivial groupings, etc., is going to be very annoying,
+    # especially since we don't have keyed_tbl and non-epi archive classes /
+    # 2D-slice views...
+    lapply(seq_len(nrow(input_groups)), function(input_group_i) {
+      groupDT <- input_groups$groupDT[[input_group_i]]
+      group_updates <- groupDT[, list(updateDT = list(.SD)), keyby = version]
+
+      map_accumulate_ea(
+        .init = NULL,
+        .x = seq_len(nrow(group_updates)),
+        .f2_format = "update",
+        .clobberable_versions_start = .x$clobberable_versions_start,
+        .versions_end = .x$versions_end,
+        ## .compactify_tol = 0, .progress = FALSE,
+        ...,
+        function(previous_input_snapshot, input_update_i, ...) {
+          # XXX refactor to avoid similar window completion & "decompletion"
+          # between this and epi_slide_opt call?
+
+          input_update <- group_updates$updateDT[[input_update_i]]
+
+          input_min_time_value <- input_update$time_value[[1]]
+          input_max_time_value <- input_update$time_value[[nrow(input_update)]]
+
+          setDF(input_update)
+          input_update <- new_epi_df(new_tibble(input_update),
+                                     .x$geo_type, .x$time_type,
+                                     group_updates$version[[input_update_i]],
+                                     other_keys)
+
+          input_snapshot <-
+            if (is.null(previous_input_snapshot)) {
+              input_update
+            } else {
+              epi_patch(previous_input_snapshot, input_update)
+            }
+
+          # If our computation window for ref_time_value t is [t-w1..t+w2], and we
+          # have input updates in t1..t2, then we may have output updates from
+          # [t1-w2..t2+w1], and to compute those values, we need input from the
+          # range [t1-w2-w1..t2+w1+w2].
+          #
+          # XXX vs. requesting only the stuff not already in the update, either
+          # via ranges or via seqs + regular join?  remember gaps
+          input_required_min_time_value <- input_min_time_value - .window_size * unit_step
+          input_required_max_time_value <- input_max_time_value + .window_size * unit_step
+          output_min_time_value <- input_min_time_value - window_args$after * unit_step
+          output_max_time_value <- input_max_time_value + window_args$before * unit_step
+
+          # XXX vs. keeping input_snapshot as DT throughout (adjust epi_patch)
+          # attempting to keep key / to see if without key its join options are
+          # faster?
+          output_update <- input_snapshot %>%
+            # XXX theoretically benefit should come from having faster options available here
+            filter(between(time_value, input_required_min_time_value, input_required_max_time_value))
+
+          output_update <- output_update %>%
+            epi_slide_opt(
+            {{.col_names}}, .f, ...,
+            .window_size = .window_size, .align = .align,
+            .prefix = .prefix, .suffix = .suffix, .new_col_names = .new_col_names
+            )
+          output_update <- output_update %>%
+            # XXX theoretically benefit should come from having faster options available here
+            filter(between(time_value, output_min_time_value, output_max_time_value))
+
+          list(input_snapshot, output_update)
+        }
+      )[[2L]]
+
+    })
+  }
+
 # XXX as_slide_computation rather than as_mapper? gets messy with map_accumulate_ea
 
 # XXX somehow refactor out the output-diffing ("_ea") part?
@@ -532,15 +618,20 @@ test_signals <- "percent_cli"
 ## test_signals <- "case_rate"
 
 ## system.time({
-##   mean_archive1 <- test_archive %>%
+##   mean_archive0 <- test_archive %>%
 ##     epix_slide(~ .x %>% epi_slide_mean(all_of(test_signals), .window_size = 7)) %>%
 ##     as_epi_archive()
-##   setcolorder(mean_archive1$DT)
+##   setcolorder(mean_archive0$DT)
 ## })
 
 ## system.time(
-##   mean_archive2 <- test_archive %>%
+##   mean_archive1 <- test_archive %>%
 ##     epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
+## )
+
+## system.time(
+##   mean_archive2 <- test_archive %>%
+##     epix_epi_slide_opt2(all_of(test_signals), frollmean, .window_size = 7)
 ## )
 
 withDTthreads <- withr::with_(
@@ -555,10 +646,19 @@ withDTthreads <- withr::with_(
 jointprof::joint_pprof({
   print(system.time({
     withDTthreads(1, {
-      mean_archive1 <- test_archive %>%
+      mean_archive0 <- test_archive %>%
         epix_slide(~ .x %>% epi_slide_mean(all_of(test_signals), .window_size = 7)) %>%
         as_epi_archive()
-      setcolorder(mean_archive1$DT)
+      setcolorder(mean_archive0$DT)
+    })
+  }))
+})
+
+jointprof::joint_pprof({
+  print(system.time({
+    withDTthreads(1, {
+      mean_archive1 <- test_archive %>%
+        epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
     })
   }))
 })
@@ -567,17 +667,18 @@ jointprof::joint_pprof({
   print(system.time({
     withDTthreads(1, {
       mean_archive2 <- test_archive %>%
-        epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
+        epix_epi_slide_opt2(all_of(test_signals), frollmean, .window_size = 7)
     })
   }))
 })
 
-all.equal(mean_archive1, mean_archive2)
+
+all.equal(mean_archive0, mean_archive1)
 
 profvis::profvis({
   print(system.time({
     withDTthreads(1, {
-      mean_archive2 <- test_archive %>%
+      mean_archive1 <- test_archive %>%
         epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
     })
   }))
@@ -591,7 +692,7 @@ profvis::profvis({
 ## .GlobalEnv[["dt2"]] <- as.difftime(0, units = "secs"); trace(epix_epi_slide_opt, tracer = quote({.GlobalEnv[["t2"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt2"]] <- .GlobalEnv[["dt2"]] + (Sys.time() - t2)}))
 ## profvis::profvis({
 ## withDTthreads(1, {
-##   mean_archive2 <- test_archive %>%
+##   mean_archive1 <- test_archive %>%
 ##     epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7)
 ## })
 ## })
