@@ -7,6 +7,7 @@ library(purrr)
 library(vctrs)
 library(checkmate)
 library(rlang)
+library(tibble)
 
 snapshots <- epidatasets::archive_cases_dv_subset %>%
   epix_slide(~ list(.x))
