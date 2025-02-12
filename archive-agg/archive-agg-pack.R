@@ -63,7 +63,7 @@ approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0
 
 epi_diff2 <- function(earlier_edf, later_edf,
                       input_format = c("snapshot", "update"),
-                      compactify_tol = 0) {
+                      compactify_abs_tol = 0) {
   # Most input validation. This is a small function so use faster validation
   # variants:
   if (!inherits(earlier_edf, "epi_df")) {
@@ -73,11 +73,11 @@ epi_diff2 <- function(earlier_edf, later_edf,
     cli_abort("`later_edf` must be an `epi_df`")
   }
   input_format <- arg_match0(input_format, c("snapshot", "update"))
-  if (!(is.vector(compactify_tol, mode = "numeric") && length(compactify_tol) == 1 && compactify_tol >= 0)) {
+  if (!(is.vector(compactify_abs_tol, mode = "numeric") && length(compactify_abs_tol) == 1 && compactify_abs_tol >= 0)) {
     # Give a specific message:
-    assert_numeric(compactify_tol, lower = 0, any.missing = FALSE, len = 1)
+    assert_numeric(compactify_abs_tol, lower = 0, any.missing = FALSE, len = 1)
     # Fallback e.g. for invalid classes not caught by assert_numeric:
-    cli_abort("`compactify_tol` must be a length-1 double/integer >= 0")
+    cli_abort("`compactify_abs_tol` must be a length-1 double/integer >= 0")
   }
 
   # Extract metadata:
@@ -143,7 +143,7 @@ epi_diff2 <- function(earlier_edf, later_edf,
   # For "snapshot" input_format, we need to filter to 1., 4., and 5., and alter
   # values for 1.  For "update" input_format, we need to filter to 4. and 5.
 
-  # (For compactify_tol = 0, we could potentially streamline things by dropping
+  # (For compactify_abs_tol = 0, we could potentially streamline things by dropping
   # ekt+val duplicates (cases 2. and 3.).)
 
   # Row indices of first occurrence of each ekt; will be the same as
@@ -162,7 +162,7 @@ epi_diff2 <- function(earlier_edf, later_edf,
   combined_compactify_away[combined_ekt_is_repeat] <-
     approx_equal0(combined_vals,
                   combined_vals,
-                  abs_tol = compactify_tol,
+                  abs_tol = compactify_abs_tol,
                   na_equal = TRUE,
                   inds1 = combined_ekt_is_repeat,
                   inds2 = ekt_repeat_first_i)
@@ -190,6 +190,7 @@ epi_diff2 <- function(earlier_edf, later_edf,
   reclass(combined_tbl, later_metadata)
 }
 
+# XXX vs. epi_patch_apply?
 epi_patch <- function(snapshot, update) {
   # Most input validation. This is a small function so use faster validation
   # variants:
@@ -244,7 +245,7 @@ map_accumulate_ea <- function(.x, .f, ...,
                               .f2_format = c("snapshot", "update"),
                               .clobberable_versions_start = NA,
                               .versions_end = NULL,
-                              .compactify_tol = 0,
+                              .compactify_abs_tol = 0,
                               .progress = FALSE) {
   if (length(.x) == 0L) {
     cli_abort("`.x` must have positive length")
@@ -295,7 +296,7 @@ map_accumulate_ea <- function(.x, .f, ...,
     } else {
       diff <- epi_diff2(previous_snapshot, .f_output2,
                         input_format = .f2_format,
-                        compactify_tol = .compactify_tol)
+                        compactify_abs_tol = .compactify_abs_tol)
     }
 
     # We'll need to diff any following outputs against an actual snapshot:
@@ -355,7 +356,7 @@ map_ea <- function(.x, .f, ...,
                    .f_format = c("snapshot", "update"),
                    .clobberable_versions_start = NA,
                    .versions_end = NULL,
-                   .compactify_tol = 0,
+                   .compactify_abs_tol = 0,
                    .progress = FALSE) {
   map_accumulate_ea(
     .x,
@@ -368,7 +369,7 @@ map_ea <- function(.x, .f, ...,
     .f2_format = .f_format,
     .clobberable_versions_start = .clobberable_versions_start,
     .versions_end = .versions_end,
-    .compactify_tol = .compactify_tol,
+    .compactify_abs_tol = .compactify_abs_tol,
     .progress = .progress
   )[[2L]] # ignore final accumulator value
 }
@@ -413,7 +414,7 @@ epix_epi_slide_opt.epi_archive <-
       .f2_format = "update",
       .clobberable_versions_start = .x$clobberable_versions_start,
       .versions_end = .x$versions_end,
-      ## .compactify_tol = 0, .progress = FALSE,
+      ## .compactify_abs_tol = 0, .progress = FALSE,
       ...,
       function(previous_input_snapshot, input_update_i, ...) {
         # XXX refactor to avoid similar window completion & "decompletion"
@@ -519,7 +520,7 @@ epix_epi_slide_opt2 <-
         .f2_format = "update",
         .clobberable_versions_start = .x$clobberable_versions_start,
         .versions_end = .x$versions_end,
-        ## .compactify_tol = 0, .progress = FALSE,
+        ## .compactify_abs_tol = 0, .progress = FALSE,
         ...,
         function(previous_input_snapshot, input_update_i, ...) {
           # XXX refactor to avoid similar window completion & "decompletion"
