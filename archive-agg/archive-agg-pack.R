@@ -56,7 +56,7 @@ approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0
       vec1 <- vec_slice(vec1, inds1)
       vec2 <- vec_slice(vec2, inds2)
     }
-    res <- vec_equal(vec1, vec2, na_equal = na_equal, .ptype = .ptype)
+    res <- vec_equal(vec1, vec2, na_equal = na_equal)
     return(res)
   }
 }
