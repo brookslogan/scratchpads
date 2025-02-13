@@ -246,5 +246,100 @@ withDTthreads(1, {
   bench::mark(epix_epi_slide_sub(grp_updates, 6, 0, "day"))
 })
 
+.trace_time_ns <- rlang::new_environment()
+.trace_time_ts <- rlang::new_environment()
+.trace_time_dts <- rlang::new_environment()
+# overwrites any existing tracer and deletes tracers added midway
+with_eager_and_trace_time <- function(what, code, where = topenv(parent.frame())) {
+  what_sym <- ensym(what)
+  ## where <- environment()
+  ## where <- quo_get_env(enquo(what))
+  ## where <- topenv(parent.frame())
+  ## where <- environment(what)
+  ## print(where)
+  what_str <- as.character(what_sym)
+  what_str_expr <- what_str
+  .GlobalEnv[[".trace_time_ns"]][[what_str]] <- 0L
+  .GlobalEnv[[".trace_time_dts"]][[what_str]] <- as.difftime(0, units = "secs")
+  # TODO better keys that just what_str
+  on.exit({
+    untrace(what_sym, where = where)
+    cli_inform('{what_str} was called { .GlobalEnv[[".trace_time_ns"]][[what_str]]}
+                time{?s} and used {format(.GlobalEnv[[".trace_time_dts"]][[what_str]])}')
+  })
+  entry <- call2("{", !!!c(
+    lapply(syms(names(fn_fmls(what))), function(arg_sym) {
+      expr(force(!!arg_sym))
+    }),
+    list(expr({
+      .GlobalEnv[[".trace_time_ns"]][[!!what_str_expr]] <- .GlobalEnv[[".trace_time_ns"]][[!!what_str_expr]] + 1L
+      .GlobalEnv[[".trace_time_ts"]][[!!what_str_expr]] <- Sys.time()
+    }))
+  ))
+  exit <- expr({
+    .GlobalEnv[[".trace_time_dts"]][[!!what_str_expr]] <- .GlobalEnv[[".trace_time_dts"]][[!!what_str_expr]] + (Sys.time() - .GlobalEnv[[".trace_time_ts"]][[!!what_str_expr]])
+  })
+  trace(what = what_sym,
+        tracer = entry,
+        exit = exit,
+        where = where,
+        print = FALSE)
+  code
+}
+
+with_eager_and_trace_time(frollmean, frollmean(1:100, 7))
+
+with_eager_and_trace_time(
+  frollmean, where = asNamespace("data.table"),
+  covid_case_death_rates_extended %>%
+    epi_slide_mean(case_rate, .window_size = 7) %>%
+    with(median(case_rate_7dav))
+)
+
+with_eager_and_trace_time(epix_as_of
+                          ## , where = asNamespace("epiprocess")
+                          ## , where = environment(epix_as_of)
+                        , {
+     library(dplyr)
+     # Reference time points for which we want to compute slide values:
+     versions <- seq(as.Date("2020-06-02"),
+       as.Date("2020-06-15"),
+       by = "1 day"
+     )
+     # A simple (but not very useful) example (see the archive vignette for a more
+     # realistic one):
+     archive_cases_dv_subset %>%
+       group_by(geo_value) %>%
+       epix_slide(
+         .f = ~ mean(.x$case_rate_7d_av),
+         .before = 2,
+         .versions = versions,
+         .new_col_name = "case_rate_7d_av_recent_av"
+       ) %>%
+       ungroup()
+     # TODO remove this bad example from docs
+})
+
+frollmean_dt <- as.difftime(0, units = "secs")
+trace(frollmean,
+      quote({force(x); .GlobalEnv$frollmean_t <- Sys.time()}),
+      quote(.GlobalEnv$frollmean_dt <- .GlobalEnv$frollmean_dt + (Sys.time() - .GlobalEnv$frollmean_t)),
+      print = FALSE)
+system.time(epix_epi_slide_sub(grp_updates, 6, 0, "day"))
+frollmean_dt
+untrace(frollmean)
+
+jointprof::joint_pprof({
+  withDTthreads(1, {
+    epix_epi_slide_sub(grp_updates, 6, 0, "day")
+  })
+})
+
+profvis::profvis({
+  withDTthreads(1, {
+    epix_epi_slide_sub(grp_updates, 6, 0, "day")
+  })
+})
+
 
 # XXX consider getting a zero_time_value and converting time_values to integers? might require ensuring time_value ordering in some places...
