@@ -460,9 +460,9 @@ epix_epi_slide_opt.epi_archive <-
         # via ranges or via seqs + regular join?  remember gaps
         input_required_ranges <- input_update_ranges
         input_required_ranges$min_time_value <-
-          input_required_ranges$min_time_value - .window_size * unit_step
+          input_required_ranges$min_time_value - (.window_size - 1L) * unit_step
         input_required_ranges$max_time_value <-
-          input_required_ranges$max_time_value + .window_size * unit_step
+          input_required_ranges$max_time_value + (.window_size - 1L) * unit_step
         output_ranges <- input_update_ranges
         output_ranges$min_time_value <-
           output_ranges$min_time_value - window_args$after * unit_step
@@ -551,8 +551,8 @@ epix_epi_slide_opt2 <-
           #
           # XXX vs. requesting only the stuff not already in the update, either
           # via ranges or via seqs + regular join?  remember gaps
-          input_required_min_time_value <- input_min_time_value - .window_size * unit_step
-          input_required_max_time_value <- input_max_time_value + .window_size * unit_step
+          input_required_min_time_value <- input_min_time_value - (.window_size - 1L) * unit_step
+          input_required_max_time_value <- input_max_time_value + (.window_size - 1L) * unit_step
           output_min_time_value <- input_min_time_value - window_args$after * unit_step
           output_max_time_value <- input_max_time_value + window_args$before * unit_step
 
