@@ -26,7 +26,7 @@ approx_equal <- function(vec1, vec2, abs_tol, na_equal, .ptype = NULL, recurse =
 }
 
 approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0, inds1 = NULL, inds2 = NULL) {
-  if (is_bare_numeric(vec1)) {
+  if (is_bare_numeric(vec1) && abs_tol != 0) {
     if (!is.null(inds1)) {
       vec1 <- vec1[inds1]
       vec2 <- vec2[inds2]
@@ -41,7 +41,9 @@ approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0
     )
     attributes(res) <- NULL
     return(res)
-  } else if (is.data.frame(vec1)) {
+  } else if (is.data.frame(vec1) && abs_tol != 0) {
+    # (we only need to manually recurse if we potentially have columns that would
+    # be specially processed by the above)
     if (ncol(vec1) == 0) {
       rep(TRUE, nrow(vec1))
     } else {
@@ -50,9 +52,9 @@ approx_equal0 <- function(vec1, vec2, abs_tol, na_equal, recurse = approx_equal0
       }))
     }
   } else {
-    # No special handling for any other types. Makes sense for unclassed atomic
-    # things; bare lists and certain vctrs classes might want recursion /
-    # specialization, though.
+    # No special handling for any other types/situations. Makes sense for
+    # unclassed atomic things; bare lists and certain vctrs classes might want
+    # recursion / specialization, though.
     if (!is.null(inds1)) {
       vec1 <- vec_slice(vec1, inds1)
       vec2 <- vec_slice(vec2, inds2)
