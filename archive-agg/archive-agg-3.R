@@ -268,7 +268,7 @@ with_eager_and_trace_time <- function(what, code, where = topenv(parent.frame())
                 time{?s} and used {format(.GlobalEnv[[".trace_time_dts"]][[what_str]])}')
   })
   entry <- call2("{", !!!c(
-    lapply(syms(names(fn_fmls(what))), function(arg_sym) {
+    lapply(syms(formalArgs(args(what))), function(arg_sym) {
       expr(force(!!arg_sym))
     }),
     list(expr({
@@ -339,6 +339,18 @@ profvis::profvis({
   withDTthreads(1, {
     epix_epi_slide_sub(grp_updates, 6, 0, "day")
   })
+})
+
+system.time({
+  with_eager_and_trace_time(frollmean, # where = asNamespace("data.table"),
+                            invisible(epix_epi_slide_sub(grp_updates, 6, 0, "day")))
+})
+
+system.time({
+  with_eager_and_trace_time(min,
+                            ## invisible(epix_epi_slide_sub(grp_updates, 6, 0, "day"))
+                            print(min)
+                            )
 })
 
 
