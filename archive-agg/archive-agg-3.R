@@ -133,10 +133,15 @@ tbl_patch <- function(snapshot, update, ukey_names) {
 
 # for one group, minus group keys
 epix_epi_slide_sub <- function(updates, before, after, time_type) {
+  t0 <- Sys.time()
   unit_step <- epiprocess:::unit_time_delta(time_type)
   prev_inp_snapshot <- NULL
   prev_out_snapshot <- NULL
-  map(seq_len(nrow(updates)), function(update_i) {
+  dtm1 <- as.difftime(0, units = "secs")
+  dtm2 <- as.difftime(0, units = "secs")
+  dtme1 <- as.difftime(0, units = "secs")
+  result <- map(seq_len(nrow(updates)), function(update_i) {
+    tm0 <- Sys.time()
     version <- updates$version[[update_i]]
     ## if (version == as.Date("2020-08-02")) browser()
     ## browser()
@@ -164,7 +169,11 @@ epix_epi_slide_sub <- function(updates, before, after, time_type) {
     slide$time_value <- slide_time_values
     # TODO ensure before & after as integers?
     # TODO parameterize naming, slide function, options, ...
+    tm1 <- Sys.time()
+    dtm1 <<- dtm1 + (tm1 - tm0)
     slide$slide_value <- frollmean(slide$value, before + after + 1)
+    tm2 <- Sys.time()
+    dtm2 <<- dtm2 + (tm2 - tm1)
     slide <- slide[seq(1L + before, nrow(slide) - after), ]
     ## slide <- slide[slide$.real, names(slide) != ".real"]
     slide <- slide[!is.na(slide$.real), names(slide) != ".real"]
@@ -174,14 +183,23 @@ epix_epi_slide_sub <- function(updates, before, after, time_type) {
       slide_update <- slide
       out_snapshot <- slide
     } else {
+      tme0 <- Sys.time()
       slide_update <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
       out_snapshot <- tbl_patch(prev_out_snapshot, slide_update)
+      tme1 <- Sys.time()
+      dtme1 <<- dtme1 + (tme1 - tme0)
     }
     slide_update$version <- version
     prev_inp_snapshot <<- inp_snapshot
     prev_out_snapshot <<- out_snapshot # TODO avoid need to patch twice?
     slide_update
   })
+  tend <- Sys.time()
+  print(tend - t0)
+  ## print(dtm1)
+  print(dtm2)
+  print(dtme1)
+  result
 }
 
 
@@ -243,7 +261,8 @@ waldo::compare(
 # FIXME DEBUG
 
 withDTthreads(1, {
-  bench::mark(epix_epi_slide_sub(grp_updates, 6, 0, "day"))
+  bench::mark(epix_epi_slide_sub(grp_updates, 6, 0, "day"),
+              min_time = 3)
 })
 
 .trace_time_ns <- rlang::new_environment()
@@ -331,13 +350,17 @@ untrace(frollmean)
 
 jointprof::joint_pprof({
   withDTthreads(1, {
-    epix_epi_slide_sub(grp_updates, 6, 0, "day")
+    print(system.time({
+      epix_epi_slide_sub(grp_updates, 6, 0, "day")
+    }))
   })
 })
 
 profvis::profvis({
   withDTthreads(1, {
-    epix_epi_slide_sub(grp_updates, 6, 0, "day")
+    print(system.time({
+      epix_epi_slide_sub(grp_updates, 6, 0, "day")
+    }))
   })
 })
 
@@ -348,10 +371,27 @@ system.time({
 
 system.time({
   with_eager_and_trace_time(min,
-                            ## invisible(epix_epi_slide_sub(grp_updates, 6, 0, "day"))
-                            print(min)
+                            invisible(epix_epi_slide_sub(grp_updates, 6, 0, "day"))
                             )
 })
 
+invisible(epix_epi_slide_sub(grp_updates, 6, 0, "day"))
+
 
 # XXX consider getting a zero_time_value and converting time_values to integers? might require ensuring time_value ordering in some places...
+
+# TODO data.table version?
+d401_402 <- epi_diff2(snapshots$slide_value[[401]], snapshots$slide_value[[402]])
+
+epi_patch(snapshots$slide_value[[401]], d401_402)
+
+DT401 <- as.data.table(as_tibble(snapshots$slide_value[[401]]), key = c("geo_value", "time_value"))
+DT401_402 <- d401_402 %>% as_tibble() %>% as.data.table(key = c("geo_value", "time_value"))
+
+# TODO finish
+
+# TODO try vec_unique_loc? not sure if it guarantees it will return the first appearance...
+
+# TODO try vec_c(earlier, earlier, later) and vec_count-ing?
+
+# TODO investigate https://github.com/r-lib/vctrs/blob/78d9f2b0b24131b5ce2230eb3c2c9f93620b10d9/bench/sorting-vs-hashing.md
