@@ -727,3 +727,5 @@ profvis::profvis({
 ## )
 
 # TODO try iterating over groups on outside
+
+# TODO try selecting requested column(s) and compactifying before running computation, then merge into original archive?  or lazy epix_merge...
