@@ -361,6 +361,8 @@ map_ea <- function(.x, .f, ...,
                    .versions_end = NULL,
                    .compactify_abs_tol = 0,
                    .progress = FALSE) {
+  .f <- as_mapper(.f)
+
   map_accumulate_ea(
     .x,
     function(.x, .y, ...) {
