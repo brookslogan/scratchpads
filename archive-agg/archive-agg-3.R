@@ -385,9 +385,52 @@ invisible(epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day",
 
 # TODO data.table version?
 d401_402 <- epi_diff2(snapshots$slide_value[[401]], snapshots$slide_value[[402]])
+d401_402tbl <- as_tibble(d401_402)
 
-snap401 <- snapshots$slide_value[[401]]
-snap402 <- snapshots$slide_value[[402]]
+edf401 <- snapshots$slide_value[[401]]
+edf402 <- snapshots$slide_value[[402]]
+tbl401 <- as_tibble(edf401)
+tbl402 <- as_tibble(edf402)
+
+bench::mark(
+  epi_diff2(edf401, edf402),
+  tbl_diff2(tbl401, tbl402, c("geo_value", "time_value")),
+  check = FALSE
+)
+
+jointprof::joint_pprof(
+  withDTthreads(1, {
+    for (i in 1:10000) epi_diff2(edf401, edf402)
+  })
+)
+
+jointprof::joint_pprof(
+  withDTthreads(1, {
+    for (i in 1:10000) tbl_diff2(tbl401, tbl402, c("geo_value", "time_value"))
+  })
+)
+
+bench::mark(
+  epi_patch(edf401, d401_402),
+  tbl_patch(tbl401, d401_402tbl, c("geo_value", "time_value")),
+  check = FALSE
+)
+
+
+jointprof::joint_pprof(
+  withDTthreads(1, {
+    for (i in 1:10000) epi_patch(edf401, d401_402)
+  })
+)
+
+jointprof::joint_pprof(
+  withDTthreads(1, {
+    for (i in 1:10000) tbl_patch(tbl401, d401_402tbl, c("geo_value", "time_value"))
+  })
+)
+
+# XXX seems like there's a lot of time spent in as_tibble.epi_df; can we avoid?
+# Is this reflected in slide profiling results?
 
 epi_patch(snapshots$slide_value[[401]], d401_402)
 
@@ -401,6 +444,21 @@ DT401_402 <- d401_402 %>% as_tibble() %>% as.data.table(key = c("geo_value", "ti
 # TODO try vec_c(earlier, earlier, later) and vec_count-ing?
 
 # TODO investigate https://github.com/r-lib/vctrs/blob/78d9f2b0b24131b5ce2230eb3c2c9f93620b10d9/bench/sorting-vs-hashing.md
+
+## nested_groups <- .x$DT[, list(data = list(.SD)), keyby = geo_value]
+
+## lapply(seq_len(nrow(nested_groups)), function(group_i) {
+##   group_updates <- nested_groups$data[[group_i]][, list(subtbl = list(.SD)), keyby = version]
+##   group_subresult <- epix_epi_slide_sub(
+##     group_updates,
+##     in_colnames,
+##     .f,
+##     before,
+##     after,
+##     time_type,
+##     out_colnames)
+## }) %>%
+##   {vec_rbind(!!!.)}
 
 map_accumulate_ea3 <- function(.x, .f, ...,
                                .init,
