@@ -132,7 +132,7 @@ tbl_patch <- function(snapshot, update, ukey_names) {
 }
 
 # for one group, minus group keys
-epix_epi_slide_sub <- function(updates, before, after, time_type) {
+epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type, out_colnames) {
   t0 <- Sys.time()
   unit_step <- epiprocess:::unit_time_delta(time_type)
   prev_inp_snapshot <- NULL
@@ -171,7 +171,9 @@ epix_epi_slide_sub <- function(updates, before, after, time_type) {
     # TODO parameterize naming, slide function, options, ...
     tm1 <- Sys.time()
     dtm1 <<- dtm1 + (tm1 - tm0)
-    slide$slide_value <- frollmean(slide$value, before + after + 1)
+    for (col_i in seq_along(in_colnames)) {
+      slide[[out_colnames[[col_i]]]] <- f(slide[[in_colnames[[col_i]]]], before + after + 1)
+    }
     tm2 <- Sys.time()
     dtm2 <<- dtm2 + (tm2 - tm1)
     slide <- slide[seq(1L + before, nrow(slide) - after), ]
@@ -203,17 +205,17 @@ epix_epi_slide_sub <- function(updates, before, after, time_type) {
 }
 
 
-grp_updates <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data[[1L]][,list(time_value, version, value = percent_cli, case_rate_7d_av)][, list(subtbl = list(.SD)), keyby = version]
+grp_updates <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data[[1L]][, list(subtbl = list(.SD)), keyby = version]
 
 test_subresult <-
-  epix_epi_slide_sub(grp_updates, 6, 0, "day") %>%
+  epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav") %>%
   rbindlist() %>%
   ## `[`((.real), !".real") %>%
   setkeyv(c("time_value", "version")) %>%
   setcolorder() %>%
   `[`()
 
-expected <- mean_archive2$DT[geo_value == "ca", !"geo_value"] %>% rename(value = percent_cli, slide_value = percent_cli_7dav) %>% `[`()
+expected <- mean_archive1$DT[geo_value == "ca", !"geo_value"]
 
 test_subresult %>%
   count(time_value)
@@ -222,11 +224,13 @@ expected %>%
 
 waldo::compare(
   test_subresult %>%
-    count(time_value, is.na(slide_value)) %>%
-    print(topn = 20),
+    count(time_value, is.na(percent_cli_7dav)) %>%
+    as.data.frame() %>%
+    as_tibble(),
   expected %>%
-    count(time_value, is.na(slide_value)) %>%
-    print(topn = 20)
+    count(time_value, is.na(percent_cli_7dav)) %>%
+    as.data.frame() %>%
+    as_tibble()
 )
 
 waldo::compare(
@@ -245,8 +249,8 @@ waldo::compare(
 )
 
 test_subresult[time_value == as.Date("2020-06-06")][
-  !vec_equal(test_subresult[time_value == as.Date("2020-06-06")]$slide_value,
-             expected[time_value == as.Date("2020-06-06")] %>% setkeyv(c("time_value", "version")) %>% `[`() %>% .$slide_value, na_equal = TRUE)
+  !vec_equal(test_subresult[time_value == as.Date("2020-06-06")]$percent_cli_7dav,
+             expected[time_value == as.Date("2020-06-06")] %>% setkeyv(c("time_value", "version")) %>% `[`() %>% .$percent_cli_7dav, na_equal = TRUE)
 ]
 
 mean_archive1 %>%
@@ -258,10 +262,9 @@ waldo::compare(
   test_subresult,
   expected %>% setkeyv(c("time_value", "version")) %>% `[`()
 )
-# FIXME DEBUG
 
 withDTthreads(1, {
-  bench::mark(epix_epi_slide_sub(grp_updates, 6, 0, "day"),
+  bench::mark(epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav"),
               min_time = 3)
 })
 
@@ -375,13 +378,16 @@ system.time({
                             )
 })
 
-invisible(epix_epi_slide_sub(grp_updates, 6, 0, "day"))
+invisible(epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav"))
 
 
 # XXX consider getting a zero_time_value and converting time_values to integers? might require ensuring time_value ordering in some places...
 
 # TODO data.table version?
 d401_402 <- epi_diff2(snapshots$slide_value[[401]], snapshots$slide_value[[402]])
+
+snap401 <- snapshots$slide_value[[401]]
+snap402 <- snapshots$slide_value[[402]]
 
 epi_patch(snapshots$slide_value[[401]], d401_402)
 
@@ -395,3 +401,117 @@ DT401_402 <- d401_402 %>% as_tibble() %>% as.data.table(key = c("geo_value", "ti
 # TODO try vec_c(earlier, earlier, later) and vec_count-ing?
 
 # TODO investigate https://github.com/r-lib/vctrs/blob/78d9f2b0b24131b5ce2230eb3c2c9f93620b10d9/bench/sorting-vs-hashing.md
+
+map_accumulate_ea3 <- function(.x, .f, ...,
+                               .init,
+                               .f2_format = c("snapshot", "update"),
+                               .clobberable_versions_start = NA,
+                               .versions_end = NULL,
+                               .compactify_abs_tol = 0,
+                               .progress = FALSE) {
+  # FIXME TODO
+
+  if (length(.x) == 0L) {
+    cli_abort("`.x` must have positive length")
+  }
+
+  .f <- as_mapper(.f)
+  .f2_format <- arg_match(.f2_format)
+
+  previous_accumulator <- .init
+  other_keys <- NULL
+  previous_version <- NULL
+  previous_snapshot <- NULL
+  diffs <- map(.x, .progress = .progress, .f = function(.x_entry) {
+    .f_output <- .f(previous_accumulator, .x_entry, ...)
+
+    if (!(is.list(.f_output) && length(.f_output) == 2L)) {
+      cli_abort("`.f` must output a list of length 2 (new accumulator value
+                 followed by a snapshot/update)")
+    }
+    .f_output2 <- .f_output[[2L]]
+
+    if (is_epi_df(.f_output2)) {
+      version <- attr(.f_output2, "metadata")[["as_of"]]
+    } else {
+      cli_abort('`.f` produced
+        {c("snapshot" = "a snapshot", "update" = "an update")[[.f2_format]]}
+        of an unsupported class:
+        {epiprocess:::format_chr_deparse(class(.f_output2))}
+      ')
+    }
+
+    if (!is.null(previous_version) && previous_version >= version) {
+      # XXX this could give a very delayed error on unsorted versions. Go back
+      # to requiring .x to be a version list and validate that?
+      #
+      # epi_diff2 also would validate this, but give a better message:
+      cli_abort(c("Snapshots must be generated in ascending version order.",
+                  "x" = "Version {previous_version} was followed by {version}.",
+                  ">" = "If `.x` was a vector of version dates/tags, you might
+                         just need to `sort` it."
+                  ))
+    }
+
+    # Calculate diff with epikeytimeversion + value columns; we'll
+    if (is.null(previous_snapshot)) {
+      other_keys <<- attr(.f_output2, "metadata")[["other_keys"]]
+      diff <- .f_output2
+    } else {
+      diff <- epi_diff2(previous_snapshot, .f_output2,
+                        input_format = .f2_format,
+                        compactify_abs_tol = .compactify_abs_tol)
+    }
+
+    # We'll need to diff any following outputs against an actual snapshot:
+    snapshot <-
+      if (.f2_format == "snapshot") {
+        .f_output2
+      } else { # .f2_format == "update"
+        if (is.null(previous_snapshot)) {
+          .f_output2
+        } else {
+          epi_patch(previous_snapshot, .f_output2)
+        }
+      }
+
+    previous_accumulator <<- .f_output[[1L]]
+    previous_version <<- version
+    previous_snapshot <<- snapshot
+
+    new_tibble(list(
+      version = version,
+      diff = list(as_tibble(diff))
+    ))
+  })
+
+  # More validation&defaults we can only do now:
+  if (is.null(.versions_end)) {
+    .versions_end <- previous_version
+  } else if (.versions_end < previous_version) {
+    cli_abort(c(
+      "Specified `.versions_end` was earlier than the final `as_of`.",
+      "*" = "`.versions_end`: {.versions_end}",
+      "*" = "Final `as_of`: {previous_version}"
+    ))
+  }
+
+  # rbindlist sometimes is a little fast&loose with attributes; use
+  # vec_rbind/bind_rows/unnest and convert:
+  diffs <- unnest(vec_rbind(!!!diffs), diff, names_sep = NULL)
+  # `unpack()` might possibly alias a diff if all others (if any) are empty, and
+  # diffs might alias inputs. So use as.data.table rather than setDT;
+  # performance-wise it doesn't seem to really matter.
+  diffs <- as.data.table(diffs, key = c("geo_value", other_keys, "time_value", "version"))
+  setcolorder(diffs) # default: key first, then value cols
+
+  diffs <- as_epi_archive(
+    diffs,
+    other_keys = other_keys,
+    clobberable_versions_start = .clobberable_versions_start,
+    versions_end = .versions_end,
+    compactify = FALSE # we already compactified; don't re-do work or change tol
+  )
+
+  list(previous_accumulator, diffs)
+}
