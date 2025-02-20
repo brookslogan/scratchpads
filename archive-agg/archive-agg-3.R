@@ -206,6 +206,7 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
 
 
 grp_updates <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data[[1L]][, list(subtbl = list(.SD)), keyby = version]
+updates_by_group <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data %>% lapply(function(x) x[, list(subtbl = list(.SD)), keyby = version])
 
 test_subresult <-
   epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav") %>%
@@ -264,8 +265,20 @@ waldo::compare(
 )
 
 withDTthreads(1, {
-  bench::mark(epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav"),
-              min_time = 3)
+  ## bench::mark(epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav"),
+  ##             min_time = 3)
+  bench::mark(
+    lapply(updates_by_group, function(grp_updates) epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav"))
+  )
+})
+
+withDTthreads(1, {
+  jointprof::joint_pprof({
+    updates_by_group <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data %>% lapply(function(x) x[, list(subtbl = list(.SD)), keyby = version])
+    lapply(updates_by_group, function(grp_updates) epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav")) %>%
+      list_flatten() %>%
+      list_rbind()
+  })
 })
 
 .trace_time_ns <- rlang::new_environment()

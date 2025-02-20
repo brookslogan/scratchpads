@@ -661,12 +661,12 @@ jointprof::joint_pprof({
 })
 
 jointprof::joint_pprof({
-  print(system.time({
-    withDTthreads(1, {
+  withDTthreads(1, {
+    print(system.time({
       mean_archive1 <- test_archive %>%
         epix_epi_slide_opt(all_of(test_signals), frollmean, .window_size = 7)
-    })
-  }))
+    }))
+  })
 })
 
 jointprof::joint_pprof({

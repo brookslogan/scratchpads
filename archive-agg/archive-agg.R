@@ -5,6 +5,7 @@ library(tidyr)
 library(data.table)
 library(purrr)
 library(vctrs)
+library(tibble)
 
 cce <- covidcast_epidata()
 

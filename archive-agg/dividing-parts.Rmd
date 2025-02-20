@@ -1,0 +1,37 @@
+
+
+Currently there's:
+```
+map_accumulate_ea
+map_ea
+epi_diff2
+epi_patch
+(epix_slide)
+epix_epi_slide_opt
+
+
+(tbl_diff2)
+(tbl_patch)
+(epix_epi_slide_sub)
+```
+
+
+Parts that seem like they should be separate:
+- A. Splitting (sub)archive into updates, iterating over them applying patch, coro-yielding them? or maybe passing them into some function?/generator?
+- B. Taking a list/generator of (sub)snapshots, iterating over them applying diff2, combining them into (sub)archive
+- A'. B'. Grouping versions of the above?
+- C. Taking a list/generator of things, iterating over them applying a thing->snapshot function and applying diff2, combining them into (sub)archive
+  - Or should this be a composition of A, B, and a map / lazy map / generator-map function??
+
+
+Ignore groups and multiple epikeys for a moment.  Consider if we had
+- `epix_update_iter`
+- `iter_ea` / `iter_as_epi_archive` / `collect_ea` / `iter_collect_ea` / `snapshots/updates_iter_ea`...
+- `iter_map_iter` / `iter_stream_iter`
+- `list_iter`
+
+`epix_snapshot_iter`: `epix_update_iter` x `iter_map_iter(patcher)`
+`map_ea`: `list_iter` x `iter_map_iter(.f)` x `iter_ea`
+`iter_map_accumulate_ea`: `iter_map_iter(.f2)` x (`iter_ea` + special extraction if need accumulate result)
+`map_accumulate_ea`: `list_iter` x `iter_map_iter(.f2)` x (`iter_ea` + special extraction if need accumulate result)
+`epix_slide(.all_versions = FALSE)`: `epix_snapshot_iter` x `iter_map_accumulate_ea`
