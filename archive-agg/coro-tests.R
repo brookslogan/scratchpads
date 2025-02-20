@@ -5,6 +5,8 @@
 
 
 library(coro)
+library(iterators)
+library(itertools2)
 
 snap_generator_factory <- generator(function(subtbls) {
   prev_snap <- NULL
@@ -50,7 +52,7 @@ snap_generator_factory_alt <- function(subtbls) {
 # range might be the right concept, but might not exist in a pre-existing
 # library...
 
-snap_iterator_factory4 <- function(subtbls) {
+snap_iterator_factory <- function(subtbls) {
   prev_snap <- NULL
   i <- 1
   function() {
@@ -71,8 +73,41 @@ snap_iterator_factory4 <- function(subtbls) {
   }
 }
 
+snap_iter_factory <- function(subtbls) {
+  # ... would be nice to just use iter(subtbls) %>% iter_map_iter sort of thing,
+  # but itertools2::imap doesn't seem to be it, can't find anything like this?
+  # Also don't know if function calls involved would actually be significant
+  # overhead or not...
+  prev_snap <- NULL
+  i <- 1
+  iter <- list(
+    state = environment(), # is this okay ???
+    length = length(subtbls),
+    # checkFunc???
+    hasNext = function() {
+      i != length(subtbls) + 1
+    },
+    nextElem = function() {
+      if (i == length(subtbls) + 1) {
+        stop("StopIteration")
+      } else {
+        update <- subtbls[[i]]
+        update <- as_tibble(as.data.frame(update))
+        if (is.null(prev_snap)) {
+          snap <- update
+        } else {
+          snap <- tbl_patch(prev_snap, update, "time_value")
+        }
+        prev_snap <<- snap
+        i <<- i + 1
+        snap
+      }
+    }
+  ) %>% `class<-`(c("abstractiter", "iter")) # ???
+}
+
 bench::mark(
-{
+map = {
   prev_snap <- NULL
   snaps1 <- map(grp_updates$subtbl, function(update) {
     update <- as_tibble(as.data.frame(update))
@@ -86,10 +121,10 @@ bench::mark(
     snap
   })
 },
-{
+collect_generator = {
   snaps2 <- collect(snap_generator_factory(grp_updates$subtbl))
 },
-{
+manual_collect_sized_iterator = {
   snaps3 <- vector("list", length(grp_updates$subtbl))
   snap_generator_alt <- snap_generator_factory_alt(grp_updates$subtbl)
   for (i in seq_len(nrow(grp_updates))) {
@@ -97,15 +132,15 @@ bench::mark(
   }
   snaps3
 },
-{
-  snap_iterator4 <- snap_iterator_factory4(grp_updates$subtbl)
+collect_manual_iterator = {
+  snap_iterator4 <- snap_iterator_factory(grp_updates$subtbl)
   collect(snap_iterator4)
 },
-{
-  snap_iterator4 <- snap_iterator_factory4(grp_updates$subtbl)
+manual_collect_unsized_iterator = {
+  snap_iterator5 <- snap_iterator_factory(grp_updates$subtbl)
   results <- list()
   while(TRUE) {
-    result <- snap_iterator4() # we already know there's no `close` arg to provide.
+    result <- snap_iterator5() # we already know there's no `close` arg to provide.
     if (coro::is_exhausted(result)) {
       break
     } else {
@@ -114,16 +149,21 @@ bench::mark(
   }
   results
 },
-min_time = 3
+iter = {
+  snap_iter6 <- snap_iter_factory(grp_updates$subtbl)
+  as.list(snap_iter6)
+},
+min_time = 10
 )
-#> # A tibble: 5 × 13
+#> # A tibble: 6 × 13
 #>   expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result memory     time       gc      
 #>   <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list> <list>     <list>     <list>  
-#> 1 "{ prev_snap… 214ms  216ms      4.61    22.4MB     3.46     8     6      1.73s <list> <Rprofmem> <bench_tm> <tibble>
-#> 2 "{ snaps2 <-… 378ms  379ms      2.64    22.8MB     7.93     2     6   757.01ms <list> <Rprofmem> <bench_tm> <tibble>
-#> 3 "{ snaps3 <-… 214ms  216ms      4.63    22.4MB     3.47     8     6      1.73s <list> <Rprofmem> <bench_tm> <tibble>
-#> 4 "{ snap_iter… 236ms  239ms      4.17    22.4MB     3.57     7     6      1.68s <list> <Rprofmem> <bench_tm> <tibble>
-#> 5 "{ snap_iter… 221ms  225ms      4.42    23.6MB     2.76     8     5      1.81s <list> <Rprofmem> <bench_tm> <tibble>
+#> 1 map           209ms  221ms      4.49    22.4MB     3.23    25    18      5.57s <list> <Rprofmem> <bench_tm> <tibble>
+#> 2 collect_gene… 387ms  392ms      2.54    22.8MB    10.2      5    20      1.97s <list> <Rprofmem> <bench_tm> <tibble>
+#> 3 manual_colle… 216ms  223ms      4.45    22.4MB     2.91    26    17      5.85s <list> <Rprofmem> <bench_tm> <tibble>
+#> 4 collect_manu… 240ms  246ms      4.05    22.4MB     3.47    21    18      5.18s <list> <Rprofmem> <bench_tm> <tibble>
+#> 5 manual_colle… 223ms  227ms      4.29    23.6MB     3.04    24    17      5.59s <list> <Rprofmem> <bench_tm> <tibble>
+#> 6 iter          222ms  226ms      4.36    22.4MB     3.27    24    18       5.5s <list> <Rprofmem> <bench_tm> <tibble>
 
 # coro generators seem to have a lot of overhead.  And coro::collect() overhead is notable.  Though if we were doing the inverse operation taking snapshots and forming an archive, and those snapshots were on disk, then maybe we would benefit from coro async generators.
 
@@ -136,3 +176,5 @@ loop(for (x in i) print(x))
 # --- seems possible; see ?exhausted
 
 # TODO also check iterators, itertools, itertools2, foreach packages
+
+# kind of lost trying to build on iterators package...
