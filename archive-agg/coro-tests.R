@@ -153,17 +153,22 @@ iter = {
   snap_iter6 <- snap_iter_factory(grp_updates$subtbl)
   as.list(snap_iter6)
 },
+szitrclass = {
+  szitr <- new_epi_sized_iterator(snap_iterator_factory(grp_updates$subtbl), nrow(grp_updates))
+  as.list(szitr)
+},
 min_time = 10
 )
-#> # A tibble: 6 × 13
+#> # A tibble: 7 × 13
 #>   expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result memory     time       gc      
 #>   <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list> <list>     <list>     <list>  
-#> 1 map           209ms  221ms      4.49    22.4MB     3.23    25    18      5.57s <list> <Rprofmem> <bench_tm> <tibble>
-#> 2 collect_gene… 387ms  392ms      2.54    22.8MB    10.2      5    20      1.97s <list> <Rprofmem> <bench_tm> <tibble>
-#> 3 manual_colle… 216ms  223ms      4.45    22.4MB     2.91    26    17      5.85s <list> <Rprofmem> <bench_tm> <tibble>
-#> 4 collect_manu… 240ms  246ms      4.05    22.4MB     3.47    21    18      5.18s <list> <Rprofmem> <bench_tm> <tibble>
-#> 5 manual_colle… 223ms  227ms      4.29    23.6MB     3.04    24    17      5.59s <list> <Rprofmem> <bench_tm> <tibble>
-#> 6 iter          222ms  226ms      4.36    22.4MB     3.27    24    18       5.5s <list> <Rprofmem> <bench_tm> <tibble>
+#> 1 map           207ms  212ms      4.71    22.4MB     3.44    26    19      5.52s <list> <Rprofmem> <bench_tm> <tibble>
+#> 2 collect_gene… 369ms  373ms      2.66    22.7MB     8.87     6    20      2.25s <list> <Rprofmem> <bench_tm> <tibble>
+#> 3 manual_colle… 210ms  215ms      4.65    22.4MB     3.54    25    19      5.37s <list> <Rprofmem> <bench_tm> <tibble>
+#> 4 collect_manu… 224ms  232ms      4.32    22.5MB     3.38    23    18      5.33s <list> <Rprofmem> <bench_tm> <tibble>
+#> 5 manual_colle… 208ms  212ms      4.72    23.6MB     3.04    28    18      5.93s <list> <Rprofmem> <bench_tm> <tibble>
+#> 6 iter          206ms  209ms      4.77    22.4MB     3.23    28    19      5.87s <list> <Rprofmem> <bench_tm> <tibble>
+#> 7 szitrclass    204ms  207ms      4.82    22.4MB     3.10    28    18       5.8s <list> <Rprofmem> <bench_tm> <tibble>
 
 # coro generators seem to have a lot of overhead.  And coro::collect() overhead is notable.  Though if we were doing the inverse operation taking snapshots and forming an archive, and those snapshots were on disk, then maybe we would benefit from coro async generators.
 
