@@ -35,3 +35,53 @@ Ignore groups and multiple epikeys for a moment.  Consider if we had
 `iter_map_accumulate_ea`: `iter_map_iter(.f2)` x (`iter_ea` + special extraction if need accumulate result)
 `map_accumulate_ea`: `list_iter` x `iter_map_iter(.f2)` x (`iter_ea` + special extraction if need accumulate result)
 `epix_slide(.all_versions = FALSE)`: `epix_snapshot_iter` x `iter_map_accumulate_ea`
+`epix_epi_slide_opt`: `epix_update_iter` x `iter_map_accumulate_ea(various special logic?)`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Side musing: parallel async
+
+iu = input update
+is = input snapshot
+
+Forgetting about smart input & output ranges for now
+
+iu1   iu2   iu3   iu4   iu5   iu6   iu7   iu8
+ v     v     v     v     v     v     v     v
+is1 > is2 > is3 > is4 > is5 > is6 > is7 > is8  Don't hold too many in memory at once
+ v     v     v     v     v     v     v     v
+os1   os2   os3   os4   os5   os6   os7   os8  Don't hold too many in memory at once
+ v     v     v     v     v     v     v     v
+ou1 > ou2 > ou3 > ou4 > ou5 > ou6 > ou7 > ou8
+
+
+iu1   iu2   iu3   iu4   iu5   iu6   iu7   iu8
+ v     v     v     v     v     v     v     v
+is1 > is2 > is3 > is4 > is5 > is6 > is7 > is8  Don't hold too many in memory at once
+ v     v     v     v     v     v     v     v
+osf1  osf2  osf3  osf4  osf5  osf6  osf7  osf8 Don't hold too many in memory at once + suppose this is the majority of time and only thing worth parallelizing
+ v     v     v     v     v     v     v     v
+osv1  osv2  osv3  osv4  osv5  osv6  osv7  osv8 Don't hold too many in memory at once. future values for future above.
+ v     v     v     v     v     v     v     v
+ou1 > ou2 > ou3 > ou4 > ou5 > ou6 > ou7 > ou8
+
+Is idea for mem-limited future stream to try to iterate a sliding window of (mem limit? worker limit? something else?) futures and diff just the first two at a time?  Or will that not compose well?  Is it possible to have an adaptive window based on resource usage estimates?  Is it possible to choose between advancing the window or advancing some future dependency based on resource limits?  Any way to make resource balancing shared across ops & compose well?
+
+Aside: is it better to have cur_value() and advance() for iterators, to allow e.g. output smart window(iu1, is1) potentially more naturally?
+
+Aside: is there any way to ensure there is only one consumer for an iterator? Some sort of consumer reference? Encapsulation + wrapper classes + convenience functions that enforce that "starting" an iterator only happens once?
