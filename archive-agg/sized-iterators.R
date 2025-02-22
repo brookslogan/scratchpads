@@ -27,6 +27,7 @@ itr_start <- function(itr) {
   }
 }
 
+# TODO rename? input doesn't have to be list
 list_itr <- function(x) {
   i <- 0L
   lim <- length(x)
