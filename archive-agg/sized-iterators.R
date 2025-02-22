@@ -1,7 +1,7 @@
 
 new_epi_sized_iterator <- function(size, f) {
   assert_int(size, lower = 0)
-  assert_function(f, args = character())
+  assert_function(f, args = character()) # assume coro-compliant iterator with no `close` arg
   assert_false(inherits(f, "epi_sized_iterator"))
 
   itr <- f
@@ -10,6 +10,8 @@ new_epi_sized_iterator <- function(size, f) {
   class(itr) <- "epi_sized_iterator"
   itr
 }
+
+# XXX or for debuggability should iterators be indexing into something but not have to keep around previous elements?  to prevent accidental advances.  even with start/claim there are limits
 
 itr_size <- function(itr) {
   attr(itr, "epiprocess::size")
