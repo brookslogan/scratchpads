@@ -73,6 +73,29 @@ snap_iterator_factory <- function(subtbls) {
   }
 }
 
+snap_iteratorbf_factory <- function(subtbls) {
+  curr_snap <- NULL
+  curr_i <- 0L
+  function(i) {
+    if (i == curr_i + 1L) { # perf: common case first
+      update <- subtbls[[i]]
+      update <- as_tibble(as.data.frame(update))
+      if (is.null(curr_snap)) {
+        snap <- update
+      } else {
+        snap <- tbl_patch(curr_snap, update, "time_value")
+      }
+      curr_i <<- i
+      curr_snap <<- snap
+      curr_snap
+    } else if (i == curr_i) {
+      curr_snap
+    } else {
+      stop("needs to be current or next i")
+    }
+  }
+}
+
 snap_iter_factory <- function(subtbls) {
   # ... would be nice to just use iter(subtbls) %>% iter_map_iter sort of thing,
   # but itertools2::imap doesn't seem to be it, can't find anything like this?
@@ -156,6 +179,10 @@ manual_collect_sized_iterator = {
 szitrclass = {
   szitr <- new_epi_sized_iterator(nrow(grp_updates), snap_iterator_factory(grp_updates$subtbl))
   as.list(szitr)
+},
+szitrclassb = {
+  szitrb <- new_epi_sized_iteratorb(nrow(grp_updates), snap_iteratorbf_factory(grp_updates$subtbl))
+  as.list(szitrb)
 },
 min_time = 20
 )

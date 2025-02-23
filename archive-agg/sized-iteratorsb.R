@@ -92,3 +92,5 @@ ib2(1)
 ib2(2)
 ib2(4)
 ib2(1)
+
+# TODO apply perf checking for common case of advancing i first
