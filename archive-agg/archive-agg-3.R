@@ -1,19 +1,46 @@
 
-# XXX vs tbl_diff_patch / tbl_diff2_patch?
-tbl_diff2 <- function(earlier_tbl, later_tbl,
-                      ukey_names,
-                      input_format = c("snapshot", "update"),
-                      compactify_abs_tol = 0) {
+# XXX naming below vs tbl_diff_patch / tbl_diff2_patch?
 
-  # Most input validation. This is a small function so use faster validation
-  # variants:
-  if (!is_tibble(earlier_tbl)) {
-    cli_abort("`earlier_tbl` must be a tibble")
-  }
+
+
+
+#' Calculate compact patch to move from one snapshot/update to another
+#'
+#' @param earlier_snapshot tibble or `NULL`; `NULL` represents that there was no
+#'   data before `later_tbl`.
+#' @param later_tbl tibble; must have the same column names as
+#'   `earlier_snapshot` if it is a tibble.
+#' @param ukey_names character; column names that together, form a unique key
+#'   for `earlier_snapshot` and for `later_tbl`. This is unchecked; see
+#'   [`check_ukey_unique`] if you don't already have this guaranteed.
+#' @param later_format "snapshot" or "update"; default is "snapshot". If
+#'   "snapshot", `later_tbl` will be interpreted as a full snapshot of the data
+#'   set including all ukeys, and any ukeys that are in `earlier_snapshot` but
+#'   not in `later_tbl` are interpreted as deletions, which are currently
+#'   (imprecisely) represented in the output patch as revisions of all
+#'   non-`ukey_names` columns to NA values (using `{vctrs}`). If "update", then
+#'   it's assumed that any deletions have already been represented this way in
+#'   `later_tbl` and any ukeys not in `later_tbl` are simply unchanged; we are
+#'   just ensuring that the update is fully compact for the given
+#'   `compactify_abs_tol`.
+#' @param compactify_abs_tol compactification tolerance; see `apply_compactify`
+#' @return a tibble in compact "update" (diff) format
+tbl_diff2 <- function(earlier_snapshot, later_tbl,
+                      ukey_names,
+                      later_format = c("snapshot", "update"),
+                      compactify_abs_tol = 0) {
+  # Most input validation + handle NULL earlier_snapshot. This is a small function so
+  # use faster validation variants:
   if (!is_tibble(later_tbl)) {
     cli_abort("`later_tbl` must be a tibble")
   }
-  input_format <- arg_match0(input_format, c("snapshot", "update"))
+  if (is.null(earlier_snapshot)) {
+    return(later_tbl)
+  }
+  if (!is_tibble(earlier_snapshot)) {
+    cli_abort("`earlier_snapshot` must be a tibble or `NULL`")
+  }
+  later_format <- arg_match0(later_format, c("snapshot", "update"))
   if (!(is.vector(compactify_abs_tol, mode = "numeric") && length(compactify_abs_tol) == 1 && compactify_abs_tol >= 0)) {
     # Give a specific message:
     assert_numeric(compactify_abs_tol, lower = 0, any.missing = FALSE, len = 1)
@@ -22,21 +49,21 @@ tbl_diff2 <- function(earlier_tbl, later_tbl,
   }
 
   # Extract metadata:
-  earlier_n <- nrow(earlier_tbl)
+  earlier_n <- nrow(earlier_snapshot)
   later_n <- nrow(later_tbl)
-  tbl_names <- names(earlier_tbl)
+  tbl_names <- names(earlier_snapshot)
   val_names <- tbl_names[! tbl_names %in% ukey_names]
 
   # More input validation:
   if (!identical(tbl_names, names(later_tbl))) {
     # XXX is this check actually necessary?
-    cli_abort(c("`earlier_tbl` and `later_tbl` should have identical column
+    cli_abort(c("`earlier_snapshot` and `later_tbl` should have identical column
                  names and ordering.",
-                "*" = "`earlier_tbl` colnames: {format_chr_deparse(tbl_names)}",
+                "*" = "`earlier_snapshot` colnames: {format_chr_deparse(tbl_names)}",
                 "*" = "`later_tbl` colnames: {format_chr_deparse(names(later_tbl))}"))
   }
 
-  combined_tbl <- vec_rbind(earlier_tbl, later_tbl)
+  combined_tbl <- vec_rbind(earlier_snapshot, later_tbl)
   combined_n <- nrow(combined_tbl)
 
   # We'll also need epikeytimes and value columns separately:
@@ -44,18 +71,18 @@ tbl_diff2 <- function(earlier_tbl, later_tbl,
   combined_vals <- combined_tbl[val_names]
 
   # We have five types of rows in combined_tbl:
-  # 1. From earlier_tbl, no matching ukey in later_tbl (deletion; turn vals to
+  # 1. From earlier_snapshot, no matching ukey in later_tbl (deletion; turn vals to
   #    NAs to match epi_archive format)
-  # 2. From earlier_tbl, with matching ukey in later_tbl (context; exclude from
+  # 2. From earlier_snapshot, with matching ukey in later_tbl (context; exclude from
   #    result)
-  # 3. From later_tbl, with matching ukey in earlier_tbl, with value "close" (change
+  # 3. From later_tbl, with matching ukey in earlier_snapshot, with value "close" (change
   #    that we'll compactify away)
-  # 4. From later_tbl, with matching ukey in earlier_tbl, value not "close" (change
+  # 4. From later_tbl, with matching ukey in earlier_snapshot, value not "close" (change
   #    that we'll record)
   # 5. From later_tbl, with no matching ukey in later_tbl (addition)
 
-  # For "snapshot" input_format, we need to filter to 1., 4., and 5., and alter
-  # values for 1.  For "update" input_format, we need to filter to 4. and 5.
+  # For "snapshot" later_format, we need to filter to 1., 4., and 5., and alter
+  # values for 1.  For "update" later_format, we need to filter to 4. and 5.
 
   # (For compactify_abs_tol = 0, we could potentially streamline things by dropping
   # ukey+val duplicates (cases 2. and 3.).)
@@ -63,7 +90,7 @@ tbl_diff2 <- function(earlier_tbl, later_tbl,
   # Row indices of first occurrence of each ukey; will be the same as
   # seq_len(combined_n) except for when that ukey has been re-reported in
   # `later_tbl`, in which case (3. or 4.) it will point back to the row index of
-  # the same ukey in `earlier_tbl`:
+  # the same ukey in `earlier_snapshot`:
   combined_ukey_firsts <- vec_duplicate_id(combined_ukeys)
 
   # Which rows from combined are cases 3. or 4.?
@@ -85,10 +112,10 @@ tbl_diff2 <- function(earlier_tbl, later_tbl,
   # Which rows from combined are in cases 3., 4., or 5.?
   combined_from_later <- vec_rep_each(c(FALSE, TRUE), c(earlier_n, later_n))
 
-  if (input_format == "update") {
+  if (later_format == "update") {
     # Cases 4. and 5.:
     combined_tbl <- combined_tbl[combined_from_later & !combined_compactify_away, ]
-  } else { # input_format == "snapshot"
+  } else { # later_format == "snapshot"
     # Which rows from combined are in case 1.?
     combined_is_deletion <- vec_rep_each(c(TRUE, FALSE), c(earlier_n, later_n))
     combined_is_deletion[ukey_repeat_first_i] <- FALSE
@@ -106,18 +133,35 @@ tbl_diff2 <- function(earlier_tbl, later_tbl,
 }
 
 # XXX vs. tbl_patch_apply?
+
+
+
+#' Apply an update (e.g., from `tbl_diff2`) to a snapshot
+#'
+#' @param snapshot tibble or `NULL`; entire data set as of some version, or
+#'   `NULL` to treat `update` as the initial version of the data set.
+#' @param update tibble; ukeys + initial values for added rows, ukeys + new
+#'   values for changed rows. Deletions must be imprecisely represented as
+#'   changing all values to NAs.
+#' @param ukey_names character; names of columns that should form a unique key
+#'   for `snapshot` and for `update`. Uniqueness is unchecked; if you don't have
+#'   this guaranteed, see [`check_ukey_unique()`].
+#' @return tibble; snapshot of the data set with the update applied.
 tbl_patch <- function(snapshot, update, ukey_names) {
   # Most input validation. This is a small function so use faster validation
   # variants:
-  if (!is_tibble(snapshot)) {
-    cli_abort("`snapshot` must be a tibble")
-  }
   if (!is_tibble(update)) {
     # XXX debating about whether to have a specialized class for updates/diffs.
     # Seems nice for type-based reasoning and might remove some args from
     # interfaces, but would require constructor/converter functions for that
     # type.
     cli_abort("`update` must be a tibble")
+  }
+  if (is.null(snapshot)) {
+    return(update)
+  }
+  if (!is_tibble(snapshot)) {
+    cli_abort("`snapshot` must be a tibble")
   }
 
   result_tbl <- vec_rbind(update, snapshot)
@@ -142,11 +186,7 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
     setDF(inp_update)
     inp_update <- as_tibble(inp_update)
     inp_update$.real <- TRUE
-    if (is.null(prev_inp_snapshot)) {
-      inp_snapshot <- inp_update
-    } else {
-      inp_snapshot <- tbl_patch(prev_inp_snapshot, inp_update, "time_value")
-    }
+    inp_snapshot <- tbl_patch(prev_inp_snapshot, inp_update, "time_value")
     inp_update_min_t <- min(inp_update$time_value) # TODO check efficiency
     inp_update_max_t <- max(inp_update$time_value)
     ## out_update_min_t <- inp_update_min_t - after * unit_step
@@ -166,17 +206,9 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
       slide[[out_colnames[[col_i]]]] <- f(slide[[in_colnames[[col_i]]]], before + after + 1)
     }
     slide <- slide[seq(1L + before, nrow(slide) - after), ]
-    ## slide <- slide[slide$.real, names(slide) != ".real"]
     slide <- slide[!is.na(slide$.real), names(slide) != ".real"]
-    if (is.null(prev_out_snapshot)) {
-      # TODO move these NULL checks etc. into the diff2 and patch functions?
-      # and/or find a better value than NULL?
-      slide_update <- slide
-      out_snapshot <- slide
-    } else {
-      slide_update <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
-      out_snapshot <- tbl_patch(prev_out_snapshot, slide_update)
-    }
+    slide_update <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
+    out_snapshot <- tbl_patch(prev_out_snapshot, slide_update)
     slide_update$version <- version
     prev_inp_snapshot <<- inp_snapshot
     prev_out_snapshot <<- out_snapshot # TODO avoid need to patch twice?
@@ -567,3 +599,5 @@ map_accumulate_ea3 <- function(.x, .f, ...,
 
   list(previous_accumulator, diffs)
 }
+
+# TODO check for omitted check_ukey_unique checks
