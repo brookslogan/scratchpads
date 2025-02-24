@@ -111,14 +111,15 @@ tbl2 %>%
 
 group_nest <- function(x) {
   grp_vars <- group_vars(x)
-  nested <- nest(x, .key = ".grp_data") # by group, ignoring .drop = FALSE
+  grouped_nested <- nest(x, .key = ".grp_data") # doesn't expand for .drop = FALSE
   # TODO perf: short-circuit below if no .drop = FALSE
-  complete_backrefs <- group_data(group_by(nested, pick(all_of(grp_vars)), .drop = FALSE))
+  complete_backrefs <- group_data(grouped_nested)
+  attr(complete_backrefs, ".drop") <- NULL
   complete_grp_data <- vector("list", nrow(complete_backrefs))
   # XXX maybe could do something with vec_chop & fixup empty lists
   complete_grp_was_present <- list_sizes(complete_backrefs$.rows) != 0L
   present_row_is <- list_unchop(complete_backrefs$.rows)
-  complete_grp_data[complete_grp_was_present] <- nested$.grp_data[present_row_is]
+  complete_grp_data[complete_grp_was_present] <- grouped_nested$.grp_data[present_row_is]
   complete_grp_data[!complete_grp_was_present] <- list(x[0, ! names(x) %in% grp_vars])
   complete_nested <- complete_backrefs
   complete_nested$.rows <- NULL
@@ -126,4 +127,11 @@ group_nest <- function(x) {
   complete_nested
 }
 
-tibble(a = factor(letters[c(1,1,2)], letters[1:5]), b = c(1,1,1)) %>% group_by(b, a, .drop = FALSE) %>% group_nest() # TODO compare .grp_data with actual in group_map
+drop_test_tbl <- tibble(a = factor(letters[c(1,1,2)], letters[1:5]), b = c(1,1,1), v = list(1:5,1:2,1))
+bench::mark(
+  drop_test_tbl %>% group_by(b, a, .drop = FALSE) %>% group_nest(),
+  drop_test_tbl  %>% group_by(b, a, .drop = FALSE) %>% group_map(~ .y %>% mutate(.grp_data = list(.x))) %>% bind_rows(),
+  drop_test_tbl  %>% group_by(b, a, .drop = FALSE) %>% group_map(function(.x, .y) .y %>% mutate(.grp_data = list(.x))) %>% bind_rows(),
+  drop_test_tbl  %>% group_by(b, a, .drop = FALSE) %>% group_modify(~ tibble(.grp_data = list(.x))) %>% ungroup()
+)
+# XXX looks like these simpler approaches are faster... but dplyr nesting seemed slow, so that may mean that they are all slow...
