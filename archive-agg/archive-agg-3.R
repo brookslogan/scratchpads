@@ -188,31 +188,37 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
     inp_snapshot <- tbl_patch(prev_inp_snapshot, inp_update, "time_value")
     inp_update_min_t <- min(inp_update$time_value) # TODO check efficiency
     inp_update_max_t <- max(inp_update$time_value)
-    ## out_update_min_t <- inp_update_min_t - after * unit_step
-    ## out_update_max_t <- inp_update_max_t + before * unit_step
-    ## slide_min_t <- out_update_min_t - before * unit_step
-    ## slide_max_t <- out_update_max_t + after * unit_step
+    # If the input had updates in the range t1..t2, this could produce changes
+    # in slide outputs in the range t1-after..t2+before, and to compute those
+    # slide values, we need to look at the input snapshot from
+    # t1-after-before..t2+before+after.
     slide_min_t <- inp_update_min_t - (before + after) * unit_step
     slide_max_t <- inp_update_max_t + (before + after) * unit_step
     slide_n <- time_delta_to_n_steps(slide_max_t - slide_min_t, time_type) + 1L
     slide_time_values <- slide_min_t + 0:(slide_n - 1) * unit_step
-    inds <- vec_match(slide_time_values, inp_snapshot$time_value)
-    slide <- inp_snapshot[inds, ] # TODO vs. DT key index vs ....
+    slide_inp_backrefs <- vec_match(slide_time_values, inp_snapshot$time_value)
+    slide <- inp_snapshot[slide_inp_backrefs, ] # TODO vs. DT key index vs ....
     slide$time_value <- slide_time_values
     # TODO ensure before & after as integers?
     # TODO parameterize naming, slide function, options, ...
     for (col_i in seq_along(in_colnames)) {
       slide[[out_colnames[[col_i]]]] <- f(slide[[in_colnames[[col_i]]]], before + after + 1)
     }
-    slide <- slide[seq(1L + before, slide_n - after), ]
-    inds <- inds[seq(1L + before, slide_n - after)]
-    slide <- slide[!is.na(inds), ]
-    out_update <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
-    out_snapshot <- tbl_patch(prev_out_snapshot, out_update)
+    out_update <- slide[
+      # Get back to t1-after..t2+before; times outside this range were included
+      # only so those inside would have enough context for their slide
+      # computations, but these "context" rows may contain invalid slide
+      # computation outputs:
+      vec_rep_each(c(FALSE, TRUE, FALSE), c(before, slide_n - before - after, after)) &
+        # Only include time_values that appeared in the input snapshot:
+        !is.na(slide_inp_backrefs),
+    ]
+    out_diff <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
+    out_snapshot <- tbl_patch(prev_out_snapshot, out_diff)
     prev_inp_snapshot <<- inp_snapshot
     prev_out_snapshot <<- out_snapshot # TODO avoid need to patch twice?
-    out_update$version <- version
-    out_update
+    out_diff$version <- version
+    out_diff
   })
   result
 }
@@ -221,8 +227,8 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
 grp_updates <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data[[1L]][, list(subtbl = list(.SD)), keyby = version]
 updates_by_group <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data %>% lapply(function(x) x[, list(subtbl = list(.SD)), keyby = version])
 
-test_subresult <-
-  epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav") %>%
+
+epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav") %>%
   rbindlist() %>%
   ## `[`((.real), !".real") %>%
   setkeyv(c("time_value", "version")) %>%
