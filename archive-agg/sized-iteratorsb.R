@@ -54,23 +54,21 @@ as.list.epi_sized_iteratorb <- function(itrb) {
 }
 
 itrb_map_itrb <- function(itrb, f) {
-  curr_i <- 0L
-  curr_result <- NULL
+  curr_state <- list(0L, NULL) # i, result
   new_epi_sized_iteratorb(
     itrb_size(itrb),
     function(i) {
+      curr_i <- curr_state[[1L]]
       if (i == curr_i) {
         if (curr_i == 0L) {
           stop("0 out of bounds")
         } else {
-          curr_result
+          curr_state[[2L]]
         }
       } else {
         result <- f(itrb(i))
-        # FIXME atomicity
-        curr_i <<- i
-        curr_result <<- result
-        curr_result
+        curr_state <- list(i, result)
+        result
       }
     }
   )
