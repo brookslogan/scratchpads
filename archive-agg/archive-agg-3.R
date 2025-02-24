@@ -133,18 +133,11 @@ tbl_patch <- function(snapshot, update, ukey_names) {
 
 # for one group, minus group keys
 epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type, out_colnames) {
-  t0 <- Sys.time()
   unit_step <- epiprocess:::unit_time_delta(time_type)
   prev_inp_snapshot <- NULL
   prev_out_snapshot <- NULL
-  dtm1 <- as.difftime(0, units = "secs")
-  dtm2 <- as.difftime(0, units = "secs")
-  dtme1 <- as.difftime(0, units = "secs")
   result <- map(seq_len(nrow(updates)), function(update_i) {
-    tm0 <- Sys.time()
     version <- updates$version[[update_i]]
-    ## if (version == as.Date("2020-08-02")) browser()
-    ## browser()
     inp_update <- updates$subtbl[[update_i]] # TODO decide whether DT
     setDF(inp_update)
     inp_update <- as_tibble(inp_update)
@@ -169,13 +162,9 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
     slide$time_value <- slide_time_values
     # TODO ensure before & after as integers?
     # TODO parameterize naming, slide function, options, ...
-    tm1 <- Sys.time()
-    dtm1 <<- dtm1 + (tm1 - tm0)
     for (col_i in seq_along(in_colnames)) {
       slide[[out_colnames[[col_i]]]] <- f(slide[[in_colnames[[col_i]]]], before + after + 1)
     }
-    tm2 <- Sys.time()
-    dtm2 <<- dtm2 + (tm2 - tm1)
     slide <- slide[seq(1L + before, nrow(slide) - after), ]
     ## slide <- slide[slide$.real, names(slide) != ".real"]
     slide <- slide[!is.na(slide$.real), names(slide) != ".real"]
@@ -185,22 +174,14 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
       slide_update <- slide
       out_snapshot <- slide
     } else {
-      tme0 <- Sys.time()
       slide_update <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
       out_snapshot <- tbl_patch(prev_out_snapshot, slide_update)
-      tme1 <- Sys.time()
-      dtme1 <<- dtme1 + (tme1 - tme0)
     }
     slide_update$version <- version
     prev_inp_snapshot <<- inp_snapshot
     prev_out_snapshot <<- out_snapshot # TODO avoid need to patch twice?
     slide_update
   })
-  tend <- Sys.time()
-  print(tend - t0)
-  ## print(dtm1)
-  print(dtm2)
-  print(dtme1)
   result
 }
 
