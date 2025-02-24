@@ -1,3 +1,49 @@
+* szitrb with faster branch order, bounds check for better messaging
+
+#+begin_quote
+# A tibble: 4 × 13
+  expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result memory     time       gc      
+  <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list> <list>     <list>     <list>  
+1 map           202ms  209ms      4.74    22.4MB     3.25    54    37      11.4s <list> <Rprofmem> <bench_tm> <tibble>
+2 manual_colle… 206ms  211ms      4.70    22.4MB     3.28    53    37      11.3s <list> <Rprofmem> <bench_tm> <tibble>
+3 szitrclass    203ms  213ms      4.67    22.4MB     3.23    52    36      11.1s <list> <Rprofmem> <bench_tm> <tibble>
+4 szitrclassb   200ms  203ms      4.90    22.4MB     3.12    58    37      11.8s <list> <Rprofmem> <bench_tm> <tibble>
+#+end_quote
+
+again
+#+begin_quote
+# A tibble: 4 × 13
+  expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result memory     time       gc      
+  <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list> <list>     <list>     <list>  
+1 map           203ms  210ms      4.68    22.4MB     3.26    53    37      11.3s <list> <Rprofmem> <bench_tm> <tibble>
+2 manual_colle… 207ms  214ms      4.63    22.4MB     3.15    53    36      11.4s <list> <Rprofmem> <bench_tm> <tibble>
+3 szitrclass    200ms  206ms      4.81    22.4MB     3.38    54    38      11.2s <list> <Rprofmem> <bench_tm> <tibble>
+4 szitrclassb   200ms  203ms      4.91    22.4MB     3.28    57    38      11.6s <list> <Rprofmem> <bench_tm> <tibble>
+#+end_quote
+^ ... testing for 11sec even though requested min_time 20s and not hitting max_iterations...
+
+Requesting min_time 40s gets 20s each:
+#+begin_quote
+# A tibble: 4 × 13
+  expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result memory     time       gc      
+  <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list> <list>     <list>     <list>  
+1 map           198ms  208ms      4.79    22.4MB     3.33   108    75      22.6s <list> <Rprofmem> <bench_tm> <tibble>
+2 manual_colle… 204ms  211ms      4.72    22.4MB     3.19   108    73      22.9s <list> <Rprofmem> <bench_tm> <tibble>
+3 szitrclass    203ms  211ms      4.67    22.4MB     3.12   108    72      23.1s <list> <Rprofmem> <bench_tm> <tibble>
+4 szitrclassb   205ms  211ms      4.70    22.4MB     3.11   109    72      23.2s <list> <Rprofmem> <bench_tm> <tibble>
+#+end_quote
+
+Requesting min_time 60s and not performing other activities:
+#+begin_quote
+# A tibble: 4 × 13
+  expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result memory     time       gc      
+  <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list> <list>     <list>     <list>  
+1 map           196ms  204ms      4.89    22.4MB     3.32   168   114      34.4s <list> <Rprofmem> <bench_tm> <tibble>
+2 manual_colle… 197ms  204ms      4.88    22.4MB     3.38   166   115        34s <list> <Rprofmem> <bench_tm> <tibble>
+3 szitrclass    196ms  204ms      4.90    22.4MB     3.35   168   115      34.3s <list> <Rprofmem> <bench_tm> <tibble>
+4 szitrclassb   192ms  202ms      4.95    22.4MB     3.35   170   115      34.3s <list> <Rprofmem> <bench_tm> <tibble>
+#+end_quote
+
 * szitr with more checks, longer test time
 
 #+begin_quote
@@ -12,16 +58,16 @@
 * szitr basic
 
 #+begin_quote
-#> # A tibble: 7 × 13
-#>   expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result memory     time       gc      
-#>   <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list> <list>     <list>     <list>  
-#> 1 map           207ms  212ms      4.71    22.4MB     3.44    26    19      5.52s <list> <Rprofmem> <bench_tm> <tibble>
-#> 2 collect_gene… 369ms  373ms      2.66    22.7MB     8.87     6    20      2.25s <list> <Rprofmem> <bench_tm> <tibble>
-#> 3 manual_colle… 210ms  215ms      4.65    22.4MB     3.54    25    19      5.37s <list> <Rprofmem> <bench_tm> <tibble>
-#> 4 collect_manu… 224ms  232ms      4.32    22.5MB     3.38    23    18      5.33s <list> <Rprofmem> <bench_tm> <tibble>
-#> 5 manual_colle… 208ms  212ms      4.72    23.6MB     3.04    28    18      5.93s <list> <Rprofmem> <bench_tm> <tibble>
-#> 6 iter          206ms  209ms      4.77    22.4MB     3.23    28    19      5.87s <list> <Rprofmem> <bench_tm> <tibble>
-#> 7 szitrclass    204ms  207ms      4.82    22.4MB     3.10    28    18       5.8s <list> <Rprofmem> <bench_tm> <tibble>
+# A tibble: 7 × 13
+  expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result memory     time       gc      
+  <bch:expr>    <bch> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list> <list>     <list>     <list>  
+1 map           207ms  212ms      4.71    22.4MB     3.44    26    19      5.52s <list> <Rprofmem> <bench_tm> <tibble>
+2 collect_gene… 369ms  373ms      2.66    22.7MB     8.87     6    20      2.25s <list> <Rprofmem> <bench_tm> <tibble>
+3 manual_colle… 210ms  215ms      4.65    22.4MB     3.54    25    19      5.37s <list> <Rprofmem> <bench_tm> <tibble>
+4 collect_manu… 224ms  232ms      4.32    22.5MB     3.38    23    18      5.33s <list> <Rprofmem> <bench_tm> <tibble>
+5 manual_colle… 208ms  212ms      4.72    23.6MB     3.04    28    18      5.93s <list> <Rprofmem> <bench_tm> <tibble>
+6 iter          206ms  209ms      4.77    22.4MB     3.23    28    19      5.87s <list> <Rprofmem> <bench_tm> <tibble>
+7 szitrclass    204ms  207ms      4.82    22.4MB     3.10    28    18       5.8s <list> <Rprofmem> <bench_tm> <tibble>
 #+end_quote
 
 * packed moved to using edf diff format; to nested tbl & unnest for combining

@@ -78,6 +78,9 @@ snap_iteratorbf_factory <- function(subtbls) {
   curr_i <- 0L
   function(i) {
     if (i == curr_i + 1L) { # perf: common case first
+      if (curr_i == length(subtbls)) {
+        stop("requested beyond size")
+      }
       update <- subtbls[[i]]
       update <- as_tibble(as.data.frame(update))
       if (is.null(curr_snap)) {
@@ -184,7 +187,7 @@ szitrclassb = {
   szitrb <- new_epi_sized_iteratorb(nrow(grp_updates), snap_iteratorbf_factory(grp_updates$subtbl))
   as.list(szitrb)
 },
-min_time = 20
+min_time = 60
 )
 
 # coro generators seem to have a lot of overhead.  And coro::collect() overhead is notable.  Though if we were doing the inverse operation taking snapshots and forming an archive, and those snapshots were on disk, then maybe we would benefit from coro async generators.
