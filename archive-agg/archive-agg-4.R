@@ -98,3 +98,9 @@ tbl2 %>%
   {}
 
 # TODO in vec_split as_tibble format?
+
+## dtbl_group_nest <- function(dtbl, .......)
+
+
+
+# NOTE data.table "nest" operation seems to setkey only on outside, not mark the .SDs with the setdiff of the key & group vars; thought it did before...
