@@ -104,3 +104,26 @@ tbl2 %>%
 
 
 # NOTE data.table "nest" operation seems to setkey only on outside, not mark the .SDs with the setdiff of the key & group vars; thought it did before...
+
+
+
+
+
+group_nest <- function(x) {
+  grp_vars <- group_vars(x)
+  nested <- nest(x, .key = ".grp_data") # by group, ignoring .drop = FALSE
+  # TODO perf: short-circuit below if no .drop = FALSE
+  complete_backrefs <- group_data(group_by(nested, pick(all_of(grp_vars)), .drop = FALSE))
+  complete_grp_data <- vector("list", nrow(complete_backrefs))
+  # XXX maybe could do something with vec_chop & fixup empty lists
+  complete_grp_was_present <- list_sizes(complete_backrefs$.rows) != 0L
+  present_row_is <- list_unchop(complete_backrefs$.rows)
+  complete_grp_data[complete_grp_was_present] <- nested$.grp_data[present_row_is]
+  complete_grp_data[!complete_grp_was_present] <- list(x[0, ! names(x) %in% grp_vars])
+  complete_nested <- complete_backrefs
+  complete_nested$.rows <- NULL
+  complete_nested$.grp_data <- complete_grp_data
+  complete_nested
+}
+
+tibble(a = factor(letters[c(1,1,2)], letters[1:5]), b = c(1,1,1)) %>% group_by(b, a, .drop = FALSE) %>% group_nest() # TODO compare .grp_data with actual in group_map
