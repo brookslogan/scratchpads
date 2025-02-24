@@ -185,7 +185,6 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
     inp_update <- updates$subtbl[[update_i]] # TODO decide whether DT
     setDF(inp_update)
     inp_update <- as_tibble(inp_update)
-    inp_update$.real <- TRUE
     inp_snapshot <- tbl_patch(prev_inp_snapshot, inp_update, "time_value")
     inp_update_min_t <- min(inp_update$time_value) # TODO check efficiency
     inp_update_max_t <- max(inp_update$time_value)
@@ -205,15 +204,15 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
     for (col_i in seq_along(in_colnames)) {
       slide[[out_colnames[[col_i]]]] <- f(slide[[in_colnames[[col_i]]]], before + after + 1)
     }
-    stop("FIXME other things should be marked .real!  rows with inp columns not updated but slide updated")
-    slide <- slide[seq(1L + before, nrow(slide) - after), ]
-    slide <- slide[!is.na(slide$.real), names(slide) != ".real"]
-    slide_update <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
-    out_snapshot <- tbl_patch(prev_out_snapshot, slide_update)
-    slide_update$version <- version
+    slide <- slide[seq(1L + before, slide_n - after), ]
+    inds <- inds[seq(1L + before, slide_n - after)]
+    slide <- slide[!is.na(inds), ]
+    out_update <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
+    out_snapshot <- tbl_patch(prev_out_snapshot, out_update)
     prev_inp_snapshot <<- inp_snapshot
     prev_out_snapshot <<- out_snapshot # TODO avoid need to patch twice?
-    slide_update
+    out_update$version <- version
+    out_update
   })
   result
 }
