@@ -205,6 +205,7 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
     for (col_i in seq_along(in_colnames)) {
       slide[[out_colnames[[col_i]]]] <- f(slide[[in_colnames[[col_i]]]], before + after + 1)
     }
+    stop("FIXME other things should be marked .real!  rows with inp columns not updated but slide updated")
     slide <- slide[seq(1L + before, nrow(slide) - after), ]
     slide <- slide[!is.na(slide$.real), names(slide) != ".real"]
     slide_update <- tbl_diff2(prev_out_snapshot, slide, "time_value", "update") # TODO parms
