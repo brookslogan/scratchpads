@@ -184,7 +184,7 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
     version <- updates$version[[update_i]]
     inp_update <- updates$subtbl[[update_i]] # TODO decide whether DT
     setDF(inp_update)
-    inp_update <- as_tibble(inp_update)
+    inp_update <- new_tibble(inp_update, nrow = nrow(inp_update))
     inp_snapshot <- tbl_patch(prev_inp_snapshot, inp_update, "time_value")
     inp_update_min_t <- min(inp_update$time_value) # TODO check efficiency
     inp_update_max_t <- max(inp_update$time_value)
