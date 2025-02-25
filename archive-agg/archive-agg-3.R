@@ -41,9 +41,9 @@ tbl_diff2 <- function(earlier_snapshot, later_tbl,
     cli_abort("`earlier_snapshot` must be a tibble or `NULL`")
   }
   later_format <- arg_match0(later_format, c("snapshot", "update"))
-  if (!(is.vector(compactify_abs_tol, mode = "numeric") && length(compactify_abs_tol) == 1 && compactify_abs_tol >= 0)) {
+  if (!(is.vector(compactify_abs_tol, mode = "numeric") && length(compactify_abs_tol) == 1L && compactify_abs_tol >= 0)) {
     # Give a specific message:
-    assert_numeric(compactify_abs_tol, lower = 0, any.missing = FALSE, len = 1)
+    assert_numeric(compactify_abs_tol, lower = 0, any.missing = FALSE, len = 1L)
     # Fallback e.g. for invalid classes not caught by assert_numeric:
     cli_abort("`compactify_abs_tol` must be a length-1 double/integer >= 0")
   }
@@ -195,14 +195,14 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
     slide_min_t <- inp_update_min_t - (before + after) * unit_step
     slide_max_t <- inp_update_max_t + (before + after) * unit_step
     slide_n <- time_delta_to_n_steps(slide_max_t - slide_min_t, time_type) + 1L
-    slide_time_values <- slide_min_t + 0:(slide_n - 1) * unit_step
+    slide_time_values <- slide_min_t + 0L:(slide_n - 1L) * unit_step
     slide_inp_backrefs <- vec_match(slide_time_values, inp_snapshot$time_value)
     slide <- inp_snapshot[slide_inp_backrefs, ] # TODO vs. DT key index vs ....
     slide$time_value <- slide_time_values
     # TODO ensure before & after as integers?
     # TODO parameterize naming, slide function, options, ...
     for (col_i in seq_along(in_colnames)) {
-      slide[[out_colnames[[col_i]]]] <- f(slide[[in_colnames[[col_i]]]], before + after + 1)
+      slide[[out_colnames[[col_i]]]] <- f(slide[[in_colnames[[col_i]]]], before + after + 1L)
     }
     out_update <- slide[
       # Get back to t1-after..t2+before; times outside this range were included
