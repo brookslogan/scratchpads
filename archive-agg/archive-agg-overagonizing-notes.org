@@ -1,3 +1,14 @@
+* itrb-based group_modify
+
+#+begin_quote
+# A tibble: 2 × 13
+  expression           min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result     memory     time      
+  <bch:expr>        <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>     <list>     <list>    
+1 tibble(g = c(1, … 6.33ms 6.59ms      149.    5.98KB     1.86  2890    36      19.3s <gropd_df> <Rprofmem> <bench_tm>
+2 tibble(g = c(1, … 5.54ms 5.69ms      174.  131.73KB     1.89  3396    37      19.6s <gropd_df> <Rprofmem> <bench_tm>
+# ℹ 1 more variable: gc <list>
+#+end_quote
+
 * szitrb with faster branch order, bounds check for better messaging
 
 #+begin_quote

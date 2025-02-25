@@ -5,8 +5,9 @@
 # rather than computing all of a costly earlier map operation, only to raise an
 # error on the first try of a subsequent map or reduce operation (either due to
 # a bug there, or validation there that detects a bug in the early operations
-# done by the prior maps).
-
+# done by the prior maps). This early-error behavior may let us abstract away
+# some validation and munging that is mixed with the main logic of some slide
+# functions, assuming iterator performance is sufficient.
 
 new_epi_sized_iteratorb <- function(size, f) {
   assert_int(size, lower = 0)
