@@ -291,6 +291,15 @@ withDTthreads(1, {
   )
 })
 
+
+bench::mark(
+  test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data %>% lapply(function(x) x[, list(subtbl = list(.SD)), keyby = version]),
+  test_archive$DT %>% group_by(geo_value) %>% group_map(function(grp_data, grp_key) {
+    grp_data %>% nest(.by = version)
+  }),
+  check = FALSE
+)
+
 withDTthreads(1, {
   jointprof::joint_pprof({
     updates_by_group <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data %>% lapply(function(x) x[, list(subtbl = list(.SD)), keyby = version])
@@ -607,3 +616,23 @@ map_accumulate_ea3 <- function(.x, .f, ...,
 }
 
 # TODO check for omitted check_ukey_unique checks
+
+
+epix_group_itrb <- function(.x) {
+  assert_class(.x, "grouped_epi_archive")
+
+  .x$private$ungrouped$DT %>%
+    as.data.frame() %>%
+    as_tibble() %>%
+    group_by(pick(all_of(.x$private$vars)), .drop = .x$private$drop) %>%
+    group_split() %>%
+    list_itrb()
+}
+
+archive_cases_dv_subset %>%
+  group_by(geo_value) %>%
+  epix_group_itrb() %>%
+  as.list()
+
+epix_slide_simple <- function(.x, .f, ...) {
+}
