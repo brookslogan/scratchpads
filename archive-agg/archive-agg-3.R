@@ -244,7 +244,7 @@ epix_epi_slide_opt3.grouped_epi_archive <- function(.x, ...) {
     group_by(pick(all_of(orig_group_vars)), .drop = orig_drop)
 }
 
-upstream_slide_f_meta <- function(.f) {
+upstream_slide_f_info <- function(.f) {
   # Check that slide function `.f` is one of those short-listed from
   # `data.table` and `slider` (or a function that has the exact same definition,
   # e.g. if the function has been reexported or defined locally). Extract some
@@ -264,9 +264,9 @@ upstream_slide_f_meta <- function(.f) {
       slide_all, "slider", ~"all",
       slide_any, "slider", ~"any",
     )
-  f_info <- f_possibilities %>%
+  f_info_row <- f_possibilities %>%
     filter(map_lgl(.data$f, ~ identical(.f, .x)))
-  if (nrow(f_info) == 0L) {
+  if (nrow(f_info_row) == 0L) {
     # `f` is from somewhere else and not supported
     cli_abort(
       c(
@@ -280,20 +280,20 @@ upstream_slide_f_meta <- function(.f) {
       epiprocess__f = .f
     )
   }
-  if (nrow(f_info) > 1L) {
+  if (nrow(f_info_row) > 1L) {
     cli_abort('epiprocess internal error: looking up `.f` in table of possible
                functions yielded multiple matches. Please report it using "New
                issue" at https://github.com/cmu-delphi/epiprocess/issues, using
                reprex::reprex to provide a minimal reproducible example.')
   }
-  f_from_package <- f_info$package
+  f_from_package <- f_info_row$package
   list(
     from_package = f_from_package,
-    namer = unwrap(f_info$namer)
+    namer = unwrap(f_info_row$namer)
   )
 }
 
-across_ish_name_info <- function(.x, time_type, col_names_quo, .f_namer, .window_size, .align, .prefix, .suffix, .new_col_names) {
+across_ish_names_info <- function(.x, time_type, col_names_quo, .f_namer, .window_size, .align, .prefix, .suffix, .new_col_names) {
   # The position of a given column can be differ between input `.x` and
   # `.data_group` since the grouping step by default drops grouping columns.
   # To avoid rerunning `eval_select` for every `.data_group`, convert
@@ -380,22 +380,27 @@ epix_epi_slide_opt3.epi_archive <-
     epikey_names <- key_colnames(.x, exclude = c("time_value", "version"))
     # Validation & pre-processing:
     .align <- arg_match(.align)
-    f_meta <- upstream_slide_f_meta(.f)
+    f_info <- upstream_slide_f_info(.f)
     col_names_quo <- enquo(.col_names)
-    across_args <- across_ish_name_info(.x$DT, time_type, col_names_quo, f_meta$namer, .window_size, .align, .prefix, .suffix, .new_col_names)
+    names_info <- across_ish_names_info(.x$DT, time_type, col_names_quo, f_info$namer, .window_size, .align, .prefix, .suffix, .new_col_names)
     window_args <- get_before_after_from_window(.window_size, .align, time_type)
     # Perform the slide:
-    .x$DT %>%
+    updates_grouped <- .x$DT %>%
       as.data.frame() %>%
       as_tibble(.name_repair = "minimal") %>%
       # 0 rows input -> 0 rows output, so we can just say drop = TRUE:
-      grouped_df(epikey_names, TRUE) %>%
+      grouped_df(epikey_names, TRUE)
+    ## pb_id <- cli_progress_bar("Epigroups", n_groups(updates_grouped)) # TODO
+    updates_grouped %>%
       group_modify(function(group_values, group_key) {
         # FIXME TODO from_package & handling within epix_epi_slide_sub
         group_updates <- group_values %>% nest(.by = version, .key = "subtbl")
-        epix_epi_slide_sub(group_updates, across_args$col_names_chr, .f, window_args$before, window_args$after, time_type, across_args$result_col_names) %>%
+        res <- epix_epi_slide_sub(group_updates, names_info$col_names_chr, .f, window_args$before, window_args$after, time_type, names_info$result_col_names) %>%
           list_rbind()
+        ## cli_progress_update(id = pb_id)
+        res
       })
+    ## cli_progress_done(id = pb_id)
     # FIXME TODO format back to archive
   }
 

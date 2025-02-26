@@ -8,6 +8,7 @@ library(vctrs)
 library(checkmate)
 library(rlang)
 library(tibble)
+library(cli)
 
 snapshots <- epidatasets::archive_cases_dv_subset %>%
   epix_slide(~ list(.x))
@@ -690,12 +691,13 @@ profvis::profvis({
   }))
 })
 
-
-withDTthreads(1, {
-  print(system.time({
-    mean_archive3 <- test_archive %>%
-      epix_epi_slide_opt3(all_of(test_signals), frollmean, .window_size = 7)
-  }))
+jointprof::joint_pprof({
+  withDTthreads(1, {
+    print(system.time({
+      mean_archive3 <- test_archive %>%
+        epix_epi_slide_opt3(all_of(test_signals), frollmean, .window_size = 7)
+    }))
+  })
 })
 
 ## .GlobalEnv[["dt1"]] <- as.difftime(0, units = "secs"); trace(epi_slide_opt, tracer = quote({.GlobalEnv[["t1"]] <- Sys.time()}), exit = quote({.GlobalEnv[["dt1"]] <- .GlobalEnv[["dt1"]] + (Sys.time() - t1)}))
