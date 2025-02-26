@@ -20,7 +20,14 @@ new_epi_sized_iteratorb <- function(size, f) {
   itrb
 }
 
-# XXX or for debuggability should iterators be indexing into something but not have to keep around previous elements?  to prevent accidental advances.  even with start/claim there are limits
+# If the previously-requested index was iprev, then f(iprev) and f(iprev + 1L)
+# must both work; other indices may work but are not required to. This approach
+# allows us to have a map2-like operation that depends twice on an iterator,
+# either directly or indirectly, without accidentally double-advancing the
+# upstream iterator; sized-iterators catches this with the start/claim
+# mechanism; bare coro iterators don't catch this. It also potentially helps
+# with debugging; when recover()-ing, we can step through more kinds of iterator
+# code without accidentally advancing the iterator.
 
 itrb_size <- function(itrb) {
   attr(itrb, "epiprocess::size")
@@ -34,6 +41,8 @@ list_itrb <- function(x) {
   )
 }
 
+# This one only returns strictly what's required by the itrb approach. Perhaps
+# good for debugging iterator issues by being more rigid.
 list_streamcache_itrb <- function(x) {
   curr_i <- 0L
   curr_result <- NULL
@@ -77,7 +86,7 @@ itrb_map_itrb <- function(itrb, f) {
         }
       } else {
         result <- f(itrb(i))
-        curr_state <- list(i, result)
+        curr_state <- list(i, result) # atomic update
         result
       }
     }
