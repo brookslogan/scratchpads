@@ -178,14 +178,27 @@ archive_cases_dv_subset %>%
 ##     })
 ## }
 
-group_modify_alt <- function(.data, .f, ..., .keep = FALSE) {
-  .f <- as_mapper(.f)
-  group_itrb <- .data %>%
+group_itrb1 <- function(.data) {
+  .data %>%
     group_map(
       # group_map validation doesn't allow for just `list`; forward:
       function(group_values, group_key) list(group_values, group_key)
     ) %>%
     list_itrb()
+}
+
+group_itrb2 <- function(.data) {
+  .data %>%
+    group_map(
+      # group_map validation doesn't allow for just `list`; forward:
+      function(group_values, group_key) list(group_values = group_values, group_key = group_key)
+    ) %>%
+    list_itrb()
+}
+
+group_modify_alt1 <- function(.data, .f, ..., .group_itrb, .keep = FALSE) {
+  .f <- as_mapper(.f)
+  group_itrb <- .group_itrb(.data)
   result_itrb <- group_itrb %>%
     itrb_map_itrb(function(group) {
       subres <- .f(group[[1L]], group[[2L]], ...)
@@ -212,8 +225,44 @@ group_modify_alt <- function(.data, .f, ..., .keep = FALSE) {
     dplyr_reconstruct(.data)
 }
 
+# try accessing group_values & group_key fields by name with $
+group_modify_alt2 <- function(.data, .f, ..., .keep = FALSE) {
+  .f <- as_mapper(.f)
+  group_itrb <- group_itrb2(.data)
+  result_itrb <- group_itrb %>%
+    itrb_map_itrb(function(group) {
+      subres <- .f(group$group_values, group$group_key, ...) # *******
+    })
+  group_key_names <- group_vars(.data)
+  checked_itrb <- result_itrb %>%
+    itrb_map_itrb(function(group_output) {
+      if (!is.data.frame(group_output)) {
+        stop("group_output needs to be data.frame")
+      }
+      if (any(names(group_output) %in% group_key_names)) {
+        stop("output column with group var name")
+      }
+      group_output
+    })
+  group_labeled_outputs <-
+    lapply(seq_len(itrb_size(group_itrb)), function(i) {
+      group_key <- group_itrb(i)[[2L]]
+      group_output <- checked_itrb(i)
+      vec_cbind(group_key, group_output, .name_repair = "minimal")
+    })
+  vec_rbind(!!!group_labeled_outputs) %>%
+    # XXX inefficient; could smartly construct:
+    dplyr_reconstruct(.data)
+}
+
+group_itrb <- group_itrb2
+group_modify_alt <- partial(group_modify_alt1, .group_itrb = group_itrb2) # XXX overhead...
+
 bench::mark(
   tibble(g = c(1,1,1,2,3), v = 1:5) %>% group_by(g) %>% group_modify(~ tibble(sum = sum(.x$v))),
+  tibble(g = c(1,1,1,2,3), v = 1:5) %>% group_by(g) %>% group_modify_alt1(~ tibble(sum = sum(.x$v)), .group_itrb = group_itrb1),
+  tibble(g = c(1,1,1,2,3), v = 1:5) %>% group_by(g) %>% group_modify_alt1(~ tibble(sum = sum(.x$v)), .group_itrb = group_itrb2),
+  tibble(g = c(1,1,1,2,3), v = 1:5) %>% group_by(g) %>% group_modify_alt2(~ tibble(sum = sum(.x$v))),
   tibble(g = c(1,1,1,2,3), v = 1:5) %>% group_by(g) %>% group_modify_alt(~ tibble(sum = sum(.x$v))),
   min_time = 20
 )

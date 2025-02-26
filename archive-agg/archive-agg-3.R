@@ -183,8 +183,8 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
   result <- map(seq_len(nrow(updates)), function(update_i) {
     version <- updates$version[[update_i]]
     inp_update <- updates$subtbl[[update_i]] # TODO decide whether DT
-    setDF(inp_update)
-    inp_update <- new_tibble(inp_update, nrow = nrow(inp_update))
+    ## setDF(inp_update)
+    ## inp_update <- new_tibble(inp_update, nrow = nrow(inp_update))
     inp_snapshot <- tbl_patch(prev_inp_snapshot, inp_update, "time_value")
     inp_update_min_t <- min(inp_update$time_value) # TODO check efficiency
     inp_update_max_t <- max(inp_update$time_value)
@@ -224,11 +224,188 @@ epix_epi_slide_sub <- function(updates, in_colnames, f, before, after, time_type
 }
 
 
+epix_epi_slide_opt3 <-
+  function(.x, .col_names, .f, ...,
+           .window_size = NULL, .align = c("right", "center", "left"),
+           .prefix = NULL, .suffix = NULL, .new_col_names = NULL#,
+           ## .ref_time_values = NULL, .all_rows = FALSE
+           ) {
+  UseMethod("epix_epi_slide_opt3")
+}
+
+epix_epi_slide_opt3.grouped_epi_archive <- function(.x, ...) {
+  assert_set_equal(group_vars(.x),
+                   key_colnames(.x, exclude = c("time_value", "version")))
+  orig_group_vars <- group_vars(.x)
+  orig_drop <- .x$private$drop
+  .x %>%
+    ungroup() %>%
+    epix_epi_slide_opt3(...) %>%
+    group_by(pick(all_of(orig_group_vars)), .drop = orig_drop)
+}
+
+upstream_slide_f_meta <- function(.f) {
+  # Check that slide function `.f` is one of those short-listed from
+  # `data.table` and `slider` (or a function that has the exact same definition,
+  # e.g. if the function has been reexported or defined locally). Extract some
+  # metadata. `namer` will be mapped over columns (.x will be a column, not the
+  # entire edf).
+  f_possibilities <-
+    tibble::tribble(
+      ~f, ~package, ~namer,
+      frollmean, "data.table", ~ if (is.logical(.x)) "prop" else "av",
+      frollsum, "data.table", ~ if (is.logical(.x)) "count" else "sum",
+      frollapply, "data.table", ~"slide",
+      slide_sum, "slider", ~ if (is.logical(.x)) "count" else "sum",
+      slide_prod, "slider", ~"prod",
+      slide_mean, "slider", ~ if (is.logical(.x)) "prop" else "av",
+      slide_min, "slider", ~"min",
+      slide_max, "slider", ~"max",
+      slide_all, "slider", ~"all",
+      slide_any, "slider", ~"any",
+    )
+  f_info <- f_possibilities %>%
+    filter(map_lgl(.data$f, ~ identical(.f, .x)))
+  if (nrow(f_info) == 0L) {
+    # `f` is from somewhere else and not supported
+    cli_abort(
+      c(
+        "problem with {rlang::expr_label(rlang::caller_arg(f))}",
+        "i" = "`f` must be one of `data.table`'s rolling functions (`frollmean`,
+              `frollsum`, `frollapply`. See `?data.table::roll`) or one of
+              `slider`'s specialized sliding functions (`slide_mean`, `slide_sum`,
+              etc. See `?slider::\`summary-slide\`` for more options)."
+      ),
+      class = "epiprocess__epi_slide_opt__unsupported_slide_function",
+      epiprocess__f = .f
+    )
+  }
+  if (nrow(f_info) > 1L) {
+    cli_abort('epiprocess internal error: looking up `.f` in table of possible
+               functions yielded multiple matches. Please report it using "New
+               issue" at https://github.com/cmu-delphi/epiprocess/issues, using
+               reprex::reprex to provide a minimal reproducible example.')
+  }
+  f_from_package <- f_info$package
+  list(
+    from_package = f_from_package,
+    namer = unwrap(f_info$namer)
+  )
+}
+
+across_ish_name_info <- function(.x, time_type, col_names_quo, .f_namer, .window_size, .align, .prefix, .suffix, .new_col_names) {
+  # The position of a given column can be differ between input `.x` and
+  # `.data_group` since the grouping step by default drops grouping columns.
+  # To avoid rerunning `eval_select` for every `.data_group`, convert
+  # positions of user-provided `col_names` into string column names. We avoid
+  # using `names(pos)` directly for robustness and in case we later want to
+  # allow users to rename fields via tidyselection.
+  pos <- eval_select(col_names_quo, data = .x, allow_rename = FALSE)
+  col_names_chr <- names(.x)[pos]
+
+  # Handle output naming
+  if ((!is.null(.prefix) || !is.null(.suffix)) && !is.null(.new_col_names)) {
+    cli_abort(
+      "Can't use both .prefix/.suffix and .new_col_names at the same time.",
+      class = "epiprocess__epi_slide_opt_incompatible_naming_args"
+    )
+  }
+  assert_string(.prefix, null.ok = TRUE)
+  assert_string(.suffix, null.ok = TRUE)
+  assert_character(.new_col_names, len = length(col_names_chr), null.ok = TRUE)
+  if (is.null(.prefix) && is.null(.suffix) && is.null(.new_col_names)) {
+    .suffix <- "_{.n}{.time_unit_abbr}{.align_abbr}{.f_abbr}"
+    # ^ does not account for any arguments specified to underlying functions via
+    # `...` such as `na.rm =`, nor does it distinguish between functions from
+    # different packages accomplishing the same type of computation. Those are
+    # probably only set one way per task, so this probably produces cleaner
+    # names without clashes (though maybe some confusion if switching between
+    # code with different settings).
+  }
+  if (!is.null(.prefix) || !is.null(.suffix)) {
+    .prefix <- .prefix %||% ""
+    .suffix <- .suffix %||% ""
+    if (identical(.window_size, Inf)) {
+      n <- "running_"
+      time_unit_abbr <- ""
+      align_abbr <- ""
+    } else {
+      n <- time_delta_to_n_steps(.window_size, time_type)
+      time_unit_abbr <- time_type_unit_abbr(time_type)
+      align_abbr <- c(right = "", center = "c", left = "l")[[.align]]
+    }
+    glue_env <- rlang::env(
+      .n = n,
+      .time_unit_abbr = time_unit_abbr,
+      .align_abbr = align_abbr,
+      .f_abbr = purrr::map_chr(.x[, c(col_names_chr)], .f_namer), # compat between DT and tbl selection
+      quo_get_env(col_names_quo)
+    )
+    .new_col_names <- unclass(
+      glue(.prefix, .envir = glue_env) +
+        col_names_chr +
+        glue(.suffix, .envir = glue_env)
+    )
+  } else {
+    # `.new_col_names` was provided by user; we don't need to do anything.
+  }
+  if (any(.new_col_names %in% names(.x))) {
+    cli_abort(c(
+      "Naming conflict between new columns and existing columns",
+      "x" = "Overlapping names: {format_varnames(intersect(.new_col_names, names(.x)))}"
+    ), class = "epiprocess__epi_slide_opt_old_new_name_conflict")
+  }
+  if (anyDuplicated(.new_col_names)) {
+    cli_abort(c(
+      "New column names contain duplicates",
+      "x" = "Duplicated names: {format_varnames(unique(.new_col_names[duplicated(.new_col_names)]))}"
+    ), class = "epiprocess__epi_slide_opt_new_name_duplicated")
+  }
+  result_col_names <- .new_col_names
+
+  return(list(
+    col_names_chr = col_names_chr,
+    result_col_names = result_col_names
+  ))
+}
+
+epix_epi_slide_opt3.epi_archive <-
+  function(.x, .col_names, .f, ...,
+           .window_size = NULL, .align = c("right", "center", "left"),
+           .prefix = NULL, .suffix = NULL, .new_col_names = NULL
+           ## , .ref_time_values = NULL, .all_rows = FALSE
+           ) {
+    # Extract metadata:
+    time_type <- .x$time_type
+    epikey_names <- key_colnames(.x, exclude = c("time_value", "version"))
+    # Validation & pre-processing:
+    .align <- arg_match(.align)
+    f_meta <- upstream_slide_f_meta(.f)
+    col_names_quo <- enquo(.col_names)
+    across_args <- across_ish_name_info(.x$DT, time_type, col_names_quo, f_meta$namer, .window_size, .align, .prefix, .suffix, .new_col_names)
+    window_args <- get_before_after_from_window(.window_size, .align, time_type)
+    # Perform the slide:
+    .x$DT %>%
+      as.data.frame() %>%
+      as_tibble(.name_repair = "minimal") %>%
+      # 0 rows input -> 0 rows output, so we can just say drop = TRUE:
+      grouped_df(epikey_names, TRUE) %>%
+      group_modify(function(group_values, group_key) {
+        # FIXME TODO from_package & handling within epix_epi_slide_sub
+        group_updates <- group_values %>% nest(.by = version, .key = "subtbl")
+        epix_epi_slide_sub(group_updates, across_args$col_names_chr, .f, window_args$before, window_args$after, time_type, across_args$result_col_names) %>%
+          list_rbind()
+      })
+    # FIXME TODO format back to archive
+  }
+
+
 grp_updates <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data[[1L]][, list(subtbl = list(.SD)), keyby = version]
 updates_by_group <- test_archive$DT[, list(data = list(.SD)), keyby = geo_value]$data %>% lapply(function(x) x[, list(subtbl = list(.SD)), keyby = version])
 
 
-epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav") %>%
+test_subresult <-
+  epix_epi_slide_sub(grp_updates, "percent_cli", frollmean, 6, 0, "day", "percent_cli_7dav") %>%
   rbindlist() %>%
   ## `[`((.real), !".real") %>%
   setkeyv(c("time_value", "version")) %>%
