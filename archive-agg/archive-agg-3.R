@@ -516,10 +516,14 @@ with_eager_and_trace_time <- function(what, code, where = topenv(parent.frame())
   .GlobalEnv[[".trace_time_ns"]][[what_str]] <- 0L
   .GlobalEnv[[".trace_time_dts"]][[what_str]] <- as.difftime(0, units = "secs")
   # TODO better keys that just what_str
+  t0 <- Sys.time()
   on.exit({
+    t1 <- Sys.time()
+    prop <- as.numeric(.GlobalEnv[[".trace_time_dts"]][[what_str]], units = "secs") / as.numeric(t1 - t0, units = "secs")
     untrace(what_sym, where = where)
     cli_inform('{what_str} was called { .GlobalEnv[[".trace_time_ns"]][[what_str]]}
-                time{?s} and used {format(.GlobalEnv[[".trace_time_dts"]][[what_str]])}')
+                time{?s} and used {format(.GlobalEnv[[".trace_time_dts"]][[what_str]])};
+                {100*prop}% of elapsed.')
   })
   entry <- call2("{", !!!c(
     lapply(syms(formalArgs(args(what))), function(arg_sym) {
@@ -538,7 +542,7 @@ with_eager_and_trace_time <- function(what, code, where = topenv(parent.frame())
         exit = exit,
         where = where,
         print = FALSE)
-  code
+  invisible(code)
 }
 
 with_eager_and_trace_time(frollmean, frollmean(1:100, 7))

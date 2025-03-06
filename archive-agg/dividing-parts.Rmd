@@ -80,7 +80,9 @@ osv1  osv2  osv3  osv4  osv5  osv6  osv7  osv8 Don't hold too many in memory at 
  v     v     v     v     v     v     v     v
 ou1 > ou2 > ou3 > ou4 > ou5 > ou6 > ou7 > ou8
 
-Is idea for mem-limited future stream to try to iterate a sliding window of (mem limit? worker limit? something else?) futures and diff just the first two at a time?  Or will that not compose well?  Is it possible to have an adaptive window based on resource usage estimates?  Is it possible to choose between advancing the window or advancing some future dependency based on resource limits?  Any way to make resource balancing shared across ops & compose well?
+Is idea for mem-limited future stream to try to iterate a sliding/adaptive window of (mem limit? worker limit? something else?) futures and diff just the first two at a time?  Or will that not compose well?  Is it possible to have an adaptive window based on resource usage estimates?  Is it possible to choose between advancing the window or advancing some future dependency based on resource limits?  Any way to make resource balancing shared across ops & compose well?
+
+Could probably just make the window approach just directly deliver one element at a time so consumer does not have to think about it.
 
 Aside: is it better to have cur_value() and advance() for iterators, to allow e.g. output smart window(iu1, is1) potentially more naturally?
 
