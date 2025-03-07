@@ -641,7 +641,21 @@ test_signals <- "percent_cli"
 ##     epix_epi_slide_opt2(all_of(test_signals), frollmean, .window_size = 7)
 ## )
 
-withDTthreads <- withr::with_(
+#' Run some code with temporary `setDTthreads(new)`
+#'
+#' DTthreads will be set back to original value when the code finishes/aborts.
+#'
+#' @param new number of DT threads to run the code with
+#' @param code code to execute (evaluated lazily); if you need multiple
+#'   statements, use a curly brace block
+#'
+#' @return result of evaluating `code`
+#'
+#' @seealso [`withr::with_options()`] and other such functions in the `{withr}`
+#'   package
+#'
+#' @keywords internal
+with_DTthreads <- withr::with_( # nolint:object_name_linter
   get = function(new_n_threads) {
     getDTthreads()
   },
@@ -649,6 +663,27 @@ withDTthreads <- withr::with_(
     setDTthreads(new_n_threads)
   }
 )
+
+#' Temporarily `setDTthreads(new)`, resetting when exiting current stack frame
+#'
+#' @param new number of DT threads to run the code with
+#' @param .local_envir optional; stack frame environment to attach handler to if
+#'   it shouldn't be the current stack frame.
+#'
+#' @seealso [`withr::local_options()`] and other such functions in the `{withr}`
+#'   package
+#'
+#' @keywords internal
+local_DTthreads <- withr::local_( # nolint:object_name_linter
+  get = function(new_n_threads) {
+    getDTthreads()
+  },
+  set = function(new_n_threads) {
+    setDTthreads(new_n_threads)
+  }
+)
+
+withDTthreads <- with_DTthreads
 
 jointprof::joint_pprof({
   print(system.time({
