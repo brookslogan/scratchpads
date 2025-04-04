@@ -1,29 +1,49 @@
 * epiprocess PR vs. simpler approaches
 
 #+begin_quote
-# A tibble: 6 × 13
+# A tibble: 7 × 13
   expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result     memory time       gc      
   <bch:expr>   <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>     <list> <list>     <list>  
-1 archive_cas…   3.1s  3.13s    0.315         NA     3.23     4    41      12.7s <epi_rchv> <NULL> <bench_tm> <tibble>
-2 archive_cas…  9.49s  9.57s    0.104         NA     2.72     2    52      19.1s <epi_rchv> <NULL> <bench_tm> <tibble>
-3 archive_cas… 12.85s 12.85s    0.0778        NA     2.34     1    30      12.8s <epi_rchv> <NULL> <bench_tm> <tibble>
-4 archive_cas… 14.11s 14.11s    0.0709        NA     2.34     1    33      14.1s <epi_rchv> <NULL> <bench_tm> <tibble>
-5 archive_cas… 12.62s 12.62s    0.0792        NA     2.22     1    28      12.6s <epi_rchv> <NULL> <bench_tm> <tibble>
-6 archive_cas… 12.32s 12.32s    0.0812        NA     2.35     1    29      12.3s <epi_rchv> <NULL> <bench_tm> <tibble>
-Warning message:
-Some expressions had a GC in every iteration; so filtering is disabled. 
+1 curr          3.02s  3.07s    0.327         NA     3.27     4    40      12.2s <epi_rchv> <NULL> <bench_tm> <tibble>
+2 pack         11.58s 11.58s    0.0864        NA     2.85     1    33      11.6s <epi_rchv> <NULL> <bench_tm> <tibble>
+3 to_fullslide   9.5s  9.55s    0.105         NA     2.78     2    53      19.1s <epi_rchv> <NULL> <bench_tm> <tibble>
+4 to_nopatch   12.57s 12.57s    0.0795        NA     2.39     1    30      12.6s <epi_rchv> <NULL> <bench_tm> <tibble>
+5 epix_slide   14.17s 14.17s    0.0706        NA     2.33     1    33      14.2s <epi_rchv> <NULL> <bench_tm> <tibble>
+6 as_of_loop_… 12.61s 12.61s    0.0793        NA     2.22     1    28      12.6s <epi_rchv> <NULL> <bench_tm> <tibble>
+7 as_of_loop_… 12.43s 12.43s    0.0805        NA     2.33     1    29      12.4s <epi_rchv> <NULL> <bench_tm> <tibble>
 
-# A tibble: 6 × 13
+# A tibble: 7 × 13
   expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result     memory time       gc      
   <bch:expr>   <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>     <list> <list>     <list>  
-1 case_death_…  1.61s  1.62s    0.607         NA     2.95     7    34      11.5s <epi_rchv> <NULL> <bench_tm> <tibble>
-2 case_death_…  1.22s  1.23s    0.814         NA     2.62     9    29      11.1s <epi_rchv> <NULL> <bench_tm> <tibble>
-3 case_death_…  1.37s   1.4s    0.716         NA     2.33     8    26      11.2s <epi_rchv> <NULL> <bench_tm> <tibble>
-4 case_death_… 43.78s 43.78s    0.0228        NA     2.31     1   101      43.8s <epi_rchv> <NULL> <bench_tm> <tibble>
-5 case_death_…  1.41s  1.42s    0.688         NA     2.26     7    23      10.2s <epi_rchv> <NULL> <bench_tm> <tibble>
-6 case_death_…  1.33s  1.34s    0.740         NA     2.41     8    26      10.8s <epi_rchv> <NULL> <bench_tm> <tibble>
-Warning message:
-Some expressions had a GC in every iteration; so filtering is disabled. 
+1 curr          1.58s  1.63s    0.615         NA     2.99     7    34      11.4s <epi_rchv> <NULL> <bench_tm> <tibble>
+2 pack           1.3s  1.31s    0.760         NA     2.56     8    27      10.5s <epi_rchv> <NULL> <bench_tm> <tibble>
+3 to_fullslide   1.2s  1.21s    0.813         NA     2.62     9    29      11.1s <epi_rchv> <NULL> <bench_tm> <tibble>
+4 to_nopatch    1.34s  1.36s    0.720         NA     2.34     8    26      11.1s <epi_rchv> <NULL> <bench_tm> <tibble>
+5 epix_slide   44.15s 44.15s    0.0227        NA     2.27     1   100      44.1s <epi_rchv> <NULL> <bench_tm> <tibble>
+6 as_of_loop_…  1.44s  1.45s    0.675         NA     2.12     7    22      10.4s <epi_rchv> <NULL> <bench_tm> <tibble>
+7 as_of_loop_…  1.37s  1.38s    0.721         NA     2.34     8    26      11.1s <epi_rchv> <NULL> <bench_tm> <tibble>
+
+# A tibble: 7 × 13
+  expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result     memory time       gc      
+  <bch:expr>   <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>     <list> <list>     <list>  
+1 curr          3.06s  3.09s    0.319         NA     3.27     4    41      12.6s <epi_rchv> <NULL> <bench_tm> <tibble>
+2 pack         11.59s 11.59s    0.0863        NA     2.76     1    32      11.6s <epi_rchv> <NULL> <bench_tm> <tibble>
+3 to_fullslide  9.44s  9.47s    0.106         NA     2.85     2    54      18.9s <epi_rchv> <NULL> <bench_tm> <tibble>
+4 to_nopatch   13.64s 13.64s    0.0733        NA     2.13     1    29      13.6s <epi_rchv> <NULL> <bench_tm> <tibble>
+5 epix_slide   14.34s 14.34s    0.0697        NA     2.30     1    33      14.3s <epi_rchv> <NULL> <bench_tm> <tibble>
+6 as_of_loop_… 13.18s 13.18s    0.0759        NA     2.20     1    29      13.2s <epi_rchv> <NULL> <bench_tm> <tibble>
+7 as_of_loop_… 12.77s 12.77s    0.0783        NA     2.19     1    28      12.8s <epi_rchv> <NULL> <bench_tm> <tibble>
+
+# A tibble: 7 × 13
+  expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result     memory time       gc      
+  <bch:expr>   <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>     <list> <list>     <list>  
+1 curr          1.59s   1.6s    0.624         NA     3.03     7    34      11.2s <epi_rchv> <NULL> <bench_tm> <tibble>
+2 pack           1.3s  1.33s    0.748         NA     2.52     8    27      10.7s <epi_rchv> <NULL> <bench_tm> <tibble>
+3 to_fullslide  1.19s  1.25s    0.795         NA     2.58     8    26      10.1s <epi_rchv> <NULL> <bench_tm> <tibble>
+4 to_nopatch    1.36s  1.38s    0.706         NA     2.29     8    26      11.3s <epi_rchv> <NULL> <bench_tm> <tibble>
+5 epix_slide   44.47s 44.47s    0.0225        NA     2.27     1   101      44.5s <epi_rchv> <NULL> <bench_tm> <tibble>
+6 as_of_loop_…  1.48s  1.49s    0.668         NA     2.10     7    22      10.5s <epi_rchv> <NULL> <bench_tm> <tibble>
+7 as_of_loop_…  1.39s   1.4s    0.709         NA     2.30     8    26      11.3s <epi_rchv> <NULL> <bench_tm> <tibble>
 #+end_quote
 
 * itrb-based group_modify

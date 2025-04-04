@@ -492,7 +492,7 @@ epix_epi_slide_opt.epi_archive <-
           # XXX vs. .real-style approach
           semi_join(output_ranges, ek_t_range_by)
 
-        print(nrow(output_update)/nrow(input_snapshot) * 100) # TODO remove
+        ## print(nrow(output_update)/nrow(input_snapshot) * 100) # TODO remove
 
         list(input_snapshot, output_update)
       }

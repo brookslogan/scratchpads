@@ -2861,29 +2861,49 @@ epi_slide_opt_reference3 <- function(archive, ...) {
 }
 
 bench::mark(
-  archive_cases_dv_subset %>% epi_slide_opt(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  archive_cases_dv_subset %>% epi_slide_opt_streaming_full_slide_streaming(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  archive_cases_dv_subset %>% epi_slide_opt_as_of_full_slide_streaming(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  archive_cases_dv_subset %>% epi_slide_opt_reference(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  archive_cases_dv_subset %>% epi_slide_opt_reference2(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  archive_cases_dv_subset %>% epi_slide_opt_reference3(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  curr = archive_cases_dv_subset %>% epi_slide_opt(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  pack = archive_cases_dv_subset %>% epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  to_fullslide = archive_cases_dv_subset %>% epi_slide_opt_streaming_full_slide_streaming(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  to_nopatch = archive_cases_dv_subset %>% epi_slide_opt_as_of_full_slide_streaming(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  epix_slide = archive_cases_dv_subset %>% epi_slide_opt_reference(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  as_of_loop_as_archive = archive_cases_dv_subset %>% epi_slide_opt_reference2(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  as_of_loop_new_archive = archive_cases_dv_subset %>% epi_slide_opt_reference3(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
   min_time = 10
 )
 
 bench::mark(
-  case_death_rate_archive %>% epi_slide_opt(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  case_death_rate_archive %>% epi_slide_opt_streaming_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  case_death_rate_archive %>% epi_slide_opt_as_of_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  case_death_rate_archive %>% epi_slide_opt_reference(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  case_death_rate_archive %>% epi_slide_opt_reference2(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  case_death_rate_archive %>% epi_slide_opt_reference3(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  curr = case_death_rate_archive %>% epi_slide_opt(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  pack = case_death_rate_archive %>% epix_epi_slide_opt(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  to_fullslide = case_death_rate_archive %>% epi_slide_opt_streaming_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  to_nopatch = case_death_rate_archive %>% epi_slide_opt_as_of_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  epix_slide = case_death_rate_archive %>% epi_slide_opt_reference(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  as_of_loop_as_archive = case_death_rate_archive %>% epi_slide_opt_reference2(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  as_of_loop_new_archive = case_death_rate_archive %>% epi_slide_opt_reference3(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
   min_time = 10
 )
 
-bench::mark(
-  case_death_rate_archive %>% epi_slide_opt(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  case_death_rate_archive %>% epi_slide_opt_streaming_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  case_death_rate_archive %>% epi_slide_opt_as_of_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
-  ## case_death_rate_archive %>% epi_slide_opt_reference(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .}
-  min_time = 10
-)
+withDTthreads(1, {
+  bench::mark(
+    curr = archive_cases_dv_subset %>% epi_slide_opt(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    pack = archive_cases_dv_subset %>% epix_epi_slide_opt(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    to_fullslide = archive_cases_dv_subset %>% epi_slide_opt_streaming_full_slide_streaming(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    to_nopatch = archive_cases_dv_subset %>% epi_slide_opt_as_of_full_slide_streaming(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    epix_slide = archive_cases_dv_subset %>% epi_slide_opt_reference(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    as_of_loop_as_archive = archive_cases_dv_subset %>% epi_slide_opt_reference2(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    as_of_loop_new_archive = archive_cases_dv_subset %>% epi_slide_opt_reference3(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    min_time = 10
+  )
+})
+
+withDTthreads(1, {
+  bench::mark(
+    curr = case_death_rate_archive %>% epi_slide_opt(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    pack = case_death_rate_archive %>% epix_epi_slide_opt(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    to_fullslide = case_death_rate_archive %>% epi_slide_opt_streaming_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    to_nopatch = case_death_rate_archive %>% epi_slide_opt_as_of_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    epix_slide = case_death_rate_archive %>% epi_slide_opt_reference(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    as_of_loop_as_archive = case_death_rate_archive %>% epi_slide_opt_reference2(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    as_of_loop_new_archive = case_death_rate_archive %>% epi_slide_opt_reference3(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+    min_time = 10
+  )
+})
