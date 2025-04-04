@@ -2205,24 +2205,25 @@ epi_diff2_l3tbl <- function(earlier_snapshot, later_snapshot,
 # TODO disallow version as a column name in snapshots
 
 bench::mark(
-  epi_diff2_a(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_a_re(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_a_nodeletion(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_a_re(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_b(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_c(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_c2c(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_c2c2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_d(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_e(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_f(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_a(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_a_re(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_a_nodeletion(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_a_re(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_b(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_c(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_c2c(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_c2c2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_d(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_e(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_f(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
   epi_diff2_g(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_h(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_h2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_i(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_i2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_j(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
-  epi_diff2_k(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_h(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_h2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_i(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_i2(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_j(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  ## epi_diff2_k(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
+  epi_diff2_l(snapshots$slide_value[[400]], snapshots$slide_value[[401]]) |> setkeyv(c("geo_value","time_value","version")),
   min_time = 4
 )
 
@@ -2649,7 +2650,7 @@ for (setup_i in seq_len(nrow(setups))) {
       ## d = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_d),
       ## e = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_e),
       ## f = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_f, .compactify_tol = .Machine$double.eps^0.5),
-      ## g = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_g),
+      g = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_g),
       ## h = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_h),
       ## h2 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_h2),
       ## h3 = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_h3),
@@ -2674,7 +2675,7 @@ for (setup_i in seq_len(nrow(setups))) {
       ## l30_tblbrl_asDT = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = bind_rows, .converter = as.data.table),
       ## l30_tblrbl = map_snaps_ea_mod(test_snapshots$slide_value, ~ .x, .epi_diff2 = epi_diff2_l3tbl, .compactify_tol = 0, .rbindlist = rbindlist, .converter = as.data.table),
       packed = map_ea(test_snapshots$slide_value, ~ .x, .compactify_tol = 0),
-      ## check = FALSE, # compactify tol vs. not, hopefully
+      check = FALSE, # compactify tol vs. not, hopefully
       min_time = 10
     ))
   })
@@ -2811,3 +2812,78 @@ jointprof::joint_pprof({
 # the next function and what is recorded, making functions return a length-2
 # list? Seems like OCaml calls this fold_left_map, and
 # Haskell calls this mapAccumL/R.
+
+epi_slide_opt_streaming_full_slide_streaming <- function(archive, ...) {
+  updates <- archive$DT[, list(data = list(.SD)), keyby = version]
+  in_snap <- NULL
+  edf_ukey <- key_colnames(archive, exclude = "version")
+  map_ea(seq_len(nrow(updates)), function(update_i) {
+    ## if (is.null(in_snap)) in_snap <<- as_tibble(updates$data[[update_i]])
+    in_snap <<- epiprocess:::tbl_patch(in_snap, as_tibble(updates$data[[update_i]]), edf_ukey)
+    epi_slide_opt(new_epi_df(in_snap, archive$geo_type, archive$time_type, updates$version[[update_i]]), ...)
+  })
+}
+
+epi_slide_opt_as_of_full_slide_streaming <- function(archive, ...) {
+  map_ea(sort(unique(archive$DT$version)), function(version) {
+    in_snap <- epix_as_of(archive, version)
+    epi_slide_opt(in_snap, ...)
+  })
+}
+
+epi_slide_opt_reference <- function(archive, ...) {
+  archive %>%
+    epix_slide(function(x, g, v) epi_slide_opt(x, ...)) %>%
+    as_epi_archive()
+}
+
+epi_slide_opt_reference2 <- function(archive, ...) {
+  map(sort(unique(archive$DT$version)), function(version) {
+    res <- as_tibble(epi_slide_opt(epix_as_of(archive, version), ...))
+    res$version <- version
+    res
+  }) %>%
+    purrr::list_rbind() %>%
+    as_epi_archive()
+}
+
+epi_slide_opt_reference3 <- function(archive, ...) {
+  map(sort(unique(archive$DT$version)), function(version) {
+    res <- as_tibble(epi_slide_opt(epix_as_of(archive, version), ...))
+    res$version <- version
+    res
+  }) %>%
+    purrr::list_rbind() %>%
+    as.data.frame() %>%
+    as.data.table(key = c("geo_value", archive$other_keys, "time_value", "version")) %>%
+    new_epi_archive(archive$geo_type, archive$time_type, archive$other_keys, archive$clobberable_versions_start, archive$versions_end) %>%
+    {.$DT <- apply_compactify(.$DT, key(.$DT)); .}
+}
+
+bench::mark(
+  archive_cases_dv_subset %>% epi_slide_opt(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  archive_cases_dv_subset %>% epi_slide_opt_streaming_full_slide_streaming(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  archive_cases_dv_subset %>% epi_slide_opt_as_of_full_slide_streaming(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  archive_cases_dv_subset %>% epi_slide_opt_reference(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  archive_cases_dv_subset %>% epi_slide_opt_reference2(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  archive_cases_dv_subset %>% epi_slide_opt_reference3(percent_cli, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  min_time = 10
+)
+
+bench::mark(
+  case_death_rate_archive %>% epi_slide_opt(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  case_death_rate_archive %>% epi_slide_opt_streaming_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  case_death_rate_archive %>% epi_slide_opt_as_of_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  case_death_rate_archive %>% epi_slide_opt_reference(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  case_death_rate_archive %>% epi_slide_opt_reference2(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  case_death_rate_archive %>% epi_slide_opt_reference3(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  min_time = 10
+)
+
+bench::mark(
+  case_death_rate_archive %>% epi_slide_opt(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  case_death_rate_archive %>% epi_slide_opt_streaming_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  case_death_rate_archive %>% epi_slide_opt_as_of_full_slide_streaming(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .},
+  ## case_death_rate_archive %>% epi_slide_opt_reference(case_rate, frollmean, .window_size = 7) %>% {setcolorder(.$DT); .}
+  min_time = 10
+)
