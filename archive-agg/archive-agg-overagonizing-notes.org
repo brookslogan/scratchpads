@@ -23,6 +23,8 @@
 6 as_of_loop_…  1.44s  1.45s    0.675         NA     2.12     7    22      10.4s <epi_rchv> <NULL> <bench_tm> <tibble>
 7 as_of_loop_…  1.37s  1.38s    0.721         NA     2.34     8    26      11.1s <epi_rchv> <NULL> <bench_tm> <tibble>
 
+with DTthreads 1:
+
 # A tibble: 7 × 13
   expression      min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result     memory time       gc      
   <bch:expr>   <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>     <list> <list>     <list>  
@@ -44,6 +46,21 @@
 5 epix_slide   44.47s 44.47s    0.0225        NA     2.27     1   101      44.5s <epi_rchv> <NULL> <bench_tm> <tibble>
 6 as_of_loop_…  1.48s  1.49s    0.668         NA     2.10     7    22      10.5s <epi_rchv> <NULL> <bench_tm> <tibble>
 7 as_of_loop_…  1.39s   1.4s    0.709         NA     2.30     8    26      11.3s <epi_rchv> <NULL> <bench_tm> <tibble>
+
+with R 4.4.2 from source, no threads setting:
+
+# A tibble: 7 × 13
+  expression           min median `itr/sec` mem_alloc `gc/sec` n_itr  n_gc total_time result     memory     time      
+  <bch:expr>        <bch:> <bch:>     <dbl> <bch:byt>    <dbl> <int> <dbl>   <bch:tm> <list>     <list>     <list>    
+1 curr               3.31s  3.33s    0.298   304.98MB     4.62     4    62      13.4s <epi_rchv> <Rprofmem> <bench_tm>
+2 pack              12.39s 12.39s    0.0807  593.77MB     2.74     1    34      12.4s <epi_rchv> <Rprofmem> <bench_tm>
+3 to_fullslide       9.63s  9.66s    0.104   595.94MB     2.59     2    50      19.3s <epi_rchv> <Rprofmem> <bench_tm>
+4 to_nopatch        13.18s 13.18s    0.0759    3.14GB     2.20     1    29      13.2s <epi_rchv> <Rprofmem> <bench_tm>
+5 epix_slide        14.88s 14.88s    0.0672    3.19GB     2.22     1    33      14.9s <epi_rchv> <Rprofmem> <bench_tm>
+6 as_of_loop_as_ar… 12.54s 12.54s    0.0798    3.12GB     2.23     1    28      12.5s <epi_rchv> <Rprofmem> <bench_tm>
+7 as_of_loop_new_a…  13.4s  13.4s    0.0746    3.09GB     2.01     1    27      13.4s <epi_rchv> <Rprofmem> <bench_tm>
+# ℹ 1 more variable: gc <list>
+
 #+end_quote
 
 * itrb-based group_modify
