@@ -7,6 +7,7 @@
 library(coro)
 library(iterators)
 library(itertools2)
+library(vctrs)
 
 snap_generator_factory <- generator(function(subtbls) {
   prev_snap <- NULL
@@ -203,3 +204,101 @@ loop(for (x in i) print(x))
 # TODO also check iterators, itertools, itertools2, foreach packages
 
 # kind of lost trying to build on iterators package...
+
+cached_exhausted <- exhausted()
+
+# TODO rename... doesn't have to be list
+list_itrcoro <- function(x) {
+  assert_true(is.vector(x)) # TODO obj_is_vector
+  curr_i <- 0L
+  function() {
+    if (curr_i == length(x)) { # TODO vec_size
+      cached_exhausted
+    } else {
+      curr_i <<- curr_i + 1L
+      x[[curr_i]]
+    }
+  }
+}
+
+itrcoro_map_itrcoro <- function(itrcoro, f) {
+  assert_function(itrcoro)
+  assert_function(f)
+  function() {
+    inp <- itrcoro()
+    if (identical(inp, cached_exhausted)) {
+      cached_exhausted
+    } else {
+      f(inp)
+    }
+  }
+}
+
+bench::mark(
+{
+ib1 <- list_itrb(1:5) %>% itrb_map_itrb(function(x) x^2)
+for (i in seq_len(attr(ib1, "epiprocess::size"))) {
+  ib1(i)
+}
+},
+{
+ic1 <- list_itrc(1:5) %>% itrc_map_itrc(function(x) x^2)
+for (i in seq_len(attr(ic1, "epiprocess::size"))) {
+  ic1(i)
+}
+},
+{
+icoro1 <- list_itrcoro(1:5) %>% itrcoro_map_itrcoro(function(x) x^2)
+loop(for (e in icoro1) {
+  e
+})
+},
+check = FALSE,
+min_time = 5, max_iterations = 1e9)
+
+# likely focusing on validation overhead... not looking to fine-tune this yet
+
+
+bench::mark(
+{
+ib1 <- list_itrb(1:1000) %>% itrb_map_itrb(function(x) x^2)
+for (i in seq_len(attr(ib1, "epiprocess::size"))) {
+  ib1(i)
+}
+},
+{
+ic1 <- list_itrc(1:1000) %>% itrc_map_itrc(function(x) x^2)
+for (i in seq_len(attr(ic1, "epiprocess::size"))) {
+  ic1(i)
+}
+},
+{
+icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(function(x) x^2)
+# loop(for (e in icoro1) {
+#   e
+# })
+#
+# Using `loop` is slow, and not using an itr_for_each / itr_loop fn for others;
+# not fair.  Use similar manual iteration:
+repeat {
+  e <- icoro1()
+  if (identical(e, cached_exhausted)) break
+  e
+}
+},
+{
+id1 <- list_itrd(1:1000) %>% itrd_map_itrd(function(x) x^2)
+i <- 0L
+repeat {
+  i <<- i + 1L
+  e <- id1(i)
+  if (identical(e, cached_exhausted)) break
+  e
+}
+},
+{
+ie1 <- list_itre(1:1000) %>% itre_map_itre(function(x) x^2)
+itre_for_each(ie1, function(x) x)
+},
+check = FALSE,
+min_time = 5, max_iterations = 1e9)
