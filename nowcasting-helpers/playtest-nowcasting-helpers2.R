@@ -100,7 +100,12 @@ lapply(seq_len(nrow(sum_features_respec)), function(sum_feature_i) {
   #     as.list(.[i,])
   #   })
   # } %>%
-  mutate(
+  transmute(
+    ek = map_chr(ek, function(some_ek_set) {
+      map(some_ek_set, format) %>%
+        reduce(paste, sep = " x ") %>%
+        paste(collapse = ", ")
+    }),
     agg_feature = map_chr(agg_feature, function(some_agg_feature) {
       tv_chr <- map_chr(some_agg_feature$tv, function(some_tv) {
         paste0("(", some_tv$time_value, ", ", some_tv$version, ")") %>%
@@ -109,7 +114,6 @@ lapply(seq_len(nrow(sum_features_respec)), function(sum_feature_i) {
       paste0(some_agg_feature$predictor, " @ ", tv_chr) %>%
         paste(collapse = ", ")
     })
-    # TODO map ekset -> str
   ) %>%
   {}
 
