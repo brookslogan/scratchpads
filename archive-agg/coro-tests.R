@@ -261,44 +261,56 @@ min_time = 5, max_iterations = 1e9)
 
 bench::mark(
 {
-ib1 <- list_itrb(1:1000) %>% itrb_map_itrb(function(x) x^2)
-for (i in seq_len(attr(ib1, "epiprocess::size"))) {
-  ib1(i)
-}
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb(function(x) x^2)
+  for (i in seq_len(attr(ib1, "epiprocess::size"))) {
+    ib1(i)
+  }
 },
 {
-ic1 <- list_itrc(1:1000) %>% itrc_map_itrc(function(x) x^2)
-for (i in seq_len(attr(ic1, "epiprocess::size"))) {
-  ic1(i)
-}
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb0(function(x) x^2)
+  for (i in seq_len(attr(ib1, "epiprocess::size"))) {
+    ib1(i)
+  }
 },
 {
-icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(function(x) x^2)
-# loop(for (e in icoro1) {
-#   e
-# })
-#
-# Using `loop` is slow, and not using an itr_for_each / itr_loop fn for others;
-# not fair.  Use similar manual iteration:
-repeat {
-  e <- icoro1()
-  if (identical(e, cached_exhausted)) break
-  e
-}
+  ic1 <- list_itrc(1:1000) %>% itrc_map_itrc(function(x) x^2)
+  for (i in seq_len(attr(ic1, "epiprocess::size"))) {
+    ic1(i)
+  }
 },
 {
-id1 <- list_itrd(1:1000) %>% itrd_map_itrd(function(x) x^2)
-i <- 0L
-repeat {
-  i <<- i + 1L
-  e <- id1(i)
-  if (identical(e, cached_exhausted)) break
-  e
-}
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(function(x) x^2)
+  # loop(for (e in icoro1) {
+  #   e
+  # })
+  #
+  # Using `loop` is slow, and not using an itr_for_each / itr_loop fn for others;
+  # not fair.  Use similar manual iteration:
+  repeat {
+    e <- icoro1()
+    if (identical(e, cached_exhausted)) break
+    e
+  }
 },
 {
-ie1 <- list_itre(1:1000) %>% itre_map_itre(function(x) x^2)
-itre_for_each(ie1, function(x) x)
+  id1 <- list_itrd(1:1000) %>% itrd_map_itrd(function(x) x^2)
+  i <- 0L
+  repeat {
+    i <<- i + 1L
+    e <- id1(i)
+    if (identical(e, cached_exhausted)) break
+    e
+  }
+},
+{
+  ie1 <- list_itre(1:1000) %>% itre_map_itre(function(x) x^2)
+  itre_for_each(ie1, function(x) x)
+},
+{
+  f <- function(x) x^2
+  for (x in 1:1000) {
+    x2 <- f(x)
+  }
 },
 check = FALSE,
 min_time = 5, max_iterations = 1e9)

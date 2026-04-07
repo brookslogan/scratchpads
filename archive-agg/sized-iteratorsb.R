@@ -93,6 +93,13 @@ itrb_map_itrb <- function(itrb, f) {
   )
 }
 
+itrb_map_itrb0 <- function(itrb, f) {
+  new_epi_sized_iteratorb(
+    itrb_size(itrb),
+    function(i) f(itrb(i))
+  )
+}
+
 obj_itrb_reduce <- function(init, itrb, f2) {
   res <- init
   for (i in seq_len(itrb_size(itrb))) {
