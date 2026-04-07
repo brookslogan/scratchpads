@@ -55,7 +55,7 @@ predictors_vtol <- predictors_confkeys %>%
 
 sum_features_spec <- bind_rows(
   tibble(predictor = "admissions", base_offset = 0, add_offset = 7 * -3:3, before = 6, after = 0),
-  tibble(predictor = "google", base_offset = -7*14, add_offset = 7 * -3:3, before = 0, after = 0),
+  tibble(predictor = "google", base_offset = -7*2, add_offset = 7 * -3:3, before = 0, after = 0),
   )
 
 sum_features_respec <- sum_features_spec %>%
@@ -158,3 +158,7 @@ training_tbl <- archive %>%
   epix_target_evaluation_data(target, -target_offset, anchor_versions = unique(.$DT$version)) %>%
   na.omit() %>%
   mutate(reference_time = anchor_version - target_offset)
+
+# TODO intersect with admissions features availability
+
+# TODO selection criteria etc.
