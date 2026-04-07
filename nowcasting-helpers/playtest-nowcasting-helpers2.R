@@ -112,9 +112,11 @@ lapply(seq_len(nrow(sum_features_respec)), function(sum_feature_i) {
           paste(collapse = ", ")
       })
       paste0(some_agg_feature$predictor, " @ ", tv_chr) %>%
-        paste(collapse = ", ")
+        paste(collapse = "; ")
     })
   ) %>%
+  # select(agg_feature, ek) %>%
+  pwalk(function(ek, agg_feature) {cat(ek); cat("\n"); cat(gsub("; ", "\n", agg_feature)); cat("\n---\n")}) %>%
   {}
 
 sum_features_respec %>%
