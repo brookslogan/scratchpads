@@ -68,7 +68,7 @@ sum_features_respec <- sum_features_spec %>%
 # for(sum_feature_i in seq_len(nrow(sum_features_respec))) {
 # }
 
-lapply(seq_len(nrow(sum_features_respec)), function(sum_feature_i) {
+tasksets_candidate_features <- lapply(seq_len(nrow(sum_features_respec)), function(sum_feature_i) {
   feature <- sum_features_respec$feature[[sum_feature_i]]
   predictor <- sum_features_respec$predictor[[sum_feature_i]]
   feature_ref_offset <- sum_features_respec$feature_ref_offset[[sum_feature_i]]
@@ -122,22 +122,22 @@ lapply(seq_len(nrow(sum_features_respec)), function(sum_feature_i) {
   #   })
   # ) %>%
   # pwalk(function(ek, agg_feature) {cat(ek); cat("\n"); cat(gsub("; ", "\n", agg_feature)); cat("\n---\n")}) %>%
-  transmute(
-    ek = map_chr(ek, function(some_ek_set) {
-      map(some_ek_set, format) %>%
-        reduce(paste, sep = " x ") %>%
-        paste(collapse = ", ")
-    }),
-    agg_feature = map_chr(agg_feature, function(some_agg_feature) {
-      tvoffset_chr <- map_chr(some_agg_feature$tvoffset, function(some_tvoffset) {
-        paste0("(", some_tvoffset$ref_offset, ", ", some_tvoffset$conf_lag, ")") %>%
-          paste(collapse = " + ")
-      })
-      paste0(some_agg_feature$predictor, " @ ", tvoffset_chr) %>%
-        paste(collapse = "; ")
-    })
-  ) %>%
-  pwalk(function(ek, agg_feature) {cat(ek); cat("\n"); cat(gsub("; ", "\n", agg_feature)); cat("\n---\n")}) %>%
+  # transmute(
+  #   ek = map_chr(ek, function(some_ek_set) {
+  #     map(some_ek_set, format) %>%
+  #       reduce(paste, sep = " x ") %>%
+  #       paste(collapse = ", ")
+  #   }),
+  #   agg_feature = map_chr(agg_feature, function(some_agg_feature) {
+  #     tvoffset_chr <- map_chr(some_agg_feature$tvoffset, function(some_tvoffset) {
+  #       paste0("(", some_tvoffset$ref_offset, ", ", some_tvoffset$conf_lag, ")") %>%
+  #         paste(collapse = " + ")
+  #     })
+  #     paste0(some_agg_feature$predictor, " @ ", tvoffset_chr) %>%
+  #       paste(collapse = "; ")
+  #   })
+  # ) %>%
+  # pwalk(function(ek, agg_feature) {cat(ek); cat("\n"); cat(gsub("; ", "\n", agg_feature)); cat("\n---\n")}) %>%
   {}
 
 # It may be more efficient to do some of this with joins, though still
@@ -151,13 +151,52 @@ lapply(seq_len(nrow(sum_features_respec)), function(sum_feature_i) {
 #   nest_join(latest, join_by(between(y$time_value, x$testing_start, x$testing_end)))
 
 
-
-
-
 training_tbl <- archive %>%
   epix_target_evaluation_data(target, -target_offset, anchor_versions = unique(.$DT$version)) %>%
   na.omit() %>%
-  mutate(reference_time = anchor_version - target_offset)
+  mutate(time_value = anchor_version - target_offset, .keep = "unused") %>%
+  {}
+
+predictor_vtols <- unique(candidate_features$predictor) %>%
+  `names<-`({.}) %>%
+  lapply(function(predictor) vtol_preprocess(NULL, archive, epix_confkeys(archive, predictor)))
+
+taskset_i <- 1L
+taskset <- tasksets_candidate_features$ek[[taskset_i]]
+candidate_features <- tasksets_candidate_features$agg_feature[[taskset_i]]
+
+extract2_agg_feature <- function(archive, ekts, agg_feature, vtol) {
+  stopifnot(nrow(agg_feature) == 1L)
+  predictor <- agg_feature$predictor
+  tvoffsets <- agg_feature$tvoffset[[1L]] # unwrap
+  stopifnot(nrow(tvoffsets) > 0L)
+  for (tvoffset_i in seq_len(nrow(tvoffsets))) {
+    # ^ maybe keep memory in check vs. map-reduce when summing across many offsets
+    ref_offset <- vec_slice(tvoffsets$ref_offset, tvoffset_i)
+    conf_lag <- vec_slice(tvoffsets$conf_lag, tvoffset_i)
+    contrib <- extract2_tvoffset(archive, ekts, predictor, ref_offset, conf_lag, vtol)
+    if (tvoffset_i == 1L) {
+      result <- contrib
+    } else {
+      result <- result + contrib
+    }
+  }
+  result
+}
+
+extract2_tvoffset(archive, training_tbl, "google", -7, as.difftime(0, units = "days"))
+
+extract2_agg_feature(archive, training_tbl, candidate_features[1L,], predictor_vtols[[candidate_features$predictor[[1L]]]])
+
+extract2_agg_feature(archive, training_tbl, candidate_features[2L,], predictor_vtols[[candidate_features$predictor[[2L]]]])
+
+training_tbl %>%
+  mutate(val = extract2_agg_feature(archive, training_tbl, candidate_features[3L,], predictor_vtols[[candidate_features$predictor[[3L]]]])) %>%
+  count(time_value, is.na(val)) %>%
+  print(n = 2000)
+
+
+# FIXME TODO still need to check we didn't drop anything in tasksets
 
 # TODO intersect with admissions features availability
 
