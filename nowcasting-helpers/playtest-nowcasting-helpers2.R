@@ -98,7 +98,7 @@ tasksets_candidate_features <- lapply(seq_len(nrow(sum_features_respec)), functi
     {}
 }) %>%
   bind_rows() %>%
-  nest(agg_feature = c(feature, predictor, tvoffset)) %>%
+  nest(die_cut_sum_feature = c(feature, predictor, tvoffset)) %>%
   # FIXME TODO complete eks
   chop(ek) %>%
   # {
@@ -112,32 +112,32 @@ tasksets_candidate_features <- lapply(seq_len(nrow(sum_features_respec)), functi
   #       reduce(paste, sep = " x ") %>%
   #       paste(collapse = ", ")
   #   }),
-  #   agg_feature = map_chr(agg_feature, function(some_agg_feature) {
-  #     tv_chr <- map_chr(some_agg_feature$tv, function(some_tv) {
+  #   die_cut_sum_feature = map_chr(die_cut_sum_feature, function(some_die_cut_sum_feature) {
+  #     tv_chr <- map_chr(some_die_cut_sum_feature$tv, function(some_tv) {
   #       paste0("(", some_tv$time_value, ", ", some_tv$version, ")") %>%
   #         paste(collapse = ", ")
   #     })
-  #     paste0(some_agg_feature$predictor, " @ ", tv_chr) %>%
+  #     paste0(some_die_cut_sum_feature$predictor, " @ ", tv_chr) %>%
   #       paste(collapse = "; ")
   #   })
   # ) %>%
-  # pwalk(function(ek, agg_feature) {cat(ek); cat("\n"); cat(gsub("; ", "\n", agg_feature)); cat("\n---\n")}) %>%
+  # pwalk(function(ek, die_cut_sum_feature) {cat(ek); cat("\n"); cat(gsub("; ", "\n", die_cut_sum_feature)); cat("\n---\n")}) %>%
   # transmute(
   #   ek = map_chr(ek, function(some_ek_set) {
   #     map(some_ek_set, format) %>%
   #       reduce(paste, sep = " x ") %>%
   #       paste(collapse = ", ")
   #   }),
-  #   agg_feature = map_chr(agg_feature, function(some_agg_feature) {
-  #     tvoffset_chr <- map_chr(some_agg_feature$tvoffset, function(some_tvoffset) {
+  #   die_cut_sum_feature = map_chr(die_cut_sum_feature, function(some_die_cut_sum_feature) {
+  #     tvoffset_chr <- map_chr(some_die_cut_sum_feature$tvoffset, function(some_tvoffset) {
   #       paste0("(", some_tvoffset$ref_offset, ", ", some_tvoffset$conf_lag, ")") %>%
   #         paste(collapse = " + ")
   #     })
-  #     paste0(some_agg_feature$predictor, " @ ", tvoffset_chr) %>%
+  #     paste0(some_die_cut_sum_feature$predictor, " @ ", tvoffset_chr) %>%
   #       paste(collapse = "; ")
   #   })
   # ) %>%
-  # pwalk(function(ek, agg_feature) {cat(ek); cat("\n"); cat(gsub("; ", "\n", agg_feature)); cat("\n---\n")}) %>%
+  # pwalk(function(ek, die_cut_sum_feature) {cat(ek); cat("\n"); cat(gsub("; ", "\n", die_cut_sum_feature)); cat("\n---\n")}) %>%
   {}
 
 # It may be more efficient to do some of this with joins, though still
@@ -151,24 +151,18 @@ tasksets_candidate_features <- lapply(seq_len(nrow(sum_features_respec)), functi
 #   nest_join(latest, join_by(between(y$time_value, x$testing_start, x$testing_end)))
 
 
-training_tbl <- archive %>%
-  epix_target_evaluation_data(target, -target_offset, anchor_versions = unique(.$DT$version)) %>%
-  na.omit() %>%
-  mutate(time_value = anchor_version - target_offset, .keep = "unused") %>%
-  {}
-
 predictor_vtols <- unique(candidate_features$predictor) %>%
   `names<-`({.}) %>%
   lapply(function(predictor) vtol_preprocess(NULL, archive, epix_confkeys(archive, predictor)))
 
 taskset_i <- 1L
 taskset <- tasksets_candidate_features$ek[[taskset_i]]
-candidate_features <- tasksets_candidate_features$agg_feature[[taskset_i]]
+candidate_features <- tasksets_candidate_features$die_cut_sum_feature[[taskset_i]]
 
-extract2_agg_feature <- function(archive, ekts, agg_feature, vtol) {
-  stopifnot(nrow(agg_feature) == 1L)
-  predictor <- agg_feature$predictor
-  tvoffsets <- agg_feature$tvoffset[[1L]] # unwrap
+extract2_die_cut_sum_feature <- function(archive, ekts, die_cut_sum_feature, vtol) {
+  stopifnot(nrow(die_cut_sum_feature) == 1L)
+  predictor <- die_cut_sum_feature$predictor
+  tvoffsets <- die_cut_sum_feature$tvoffset[[1L]] # unwrap
   stopifnot(nrow(tvoffsets) > 0L)
   for (tvoffset_i in seq_len(nrow(tvoffsets))) {
     # ^ maybe keep memory in check vs. map-reduce when summing across many offsets
@@ -184,17 +178,66 @@ extract2_agg_feature <- function(archive, ekts, agg_feature, vtol) {
   result
 }
 
-extract2_tvoffset(archive, training_tbl, "google", -7, as.difftime(0, units = "days"))
+# training_tbl <- archive %>%
+#   epix_target_evaluation_data(target, -target_offset, anchor_versions = unique(.$DT$version)) %>%
+#   na.omit() %>%
+#   mutate(time_value = anchor_version - target_offset, .keep = "unused") %>%
+#   {}
 
-extract2_agg_feature(archive, training_tbl, candidate_features[1L,], predictor_vtols[[candidate_features$predictor[[1L]]]])
+# extract2_tvoffset(archive, training_tbl, "google", -7, as.difftime(0, units = "days"))
 
-extract2_agg_feature(archive, training_tbl, candidate_features[2L,], predictor_vtols[[candidate_features$predictor[[2L]]]])
+# extract2_die_cut_sum_feature(archive, training_tbl, candidate_features[1L,], predictor_vtols[[candidate_features$predictor[[1L]]]])
 
-training_tbl %>%
-  mutate(val = extract2_agg_feature(archive, training_tbl, candidate_features[3L,], predictor_vtols[[candidate_features$predictor[[3L]]]])) %>%
-  count(time_value, is.na(val)) %>%
-  print(n = 2000)
+# extract2_die_cut_sum_feature(archive, training_tbl, candidate_features[2L,], predictor_vtols[[candidate_features$predictor[[2L]]]])
 
+# training_tbl %>%
+#   mutate(val = extract2_die_cut_sum_feature(archive, training_tbl, candidate_features[3L,], predictor_vtols[[candidate_features$predictor[[3L]]]])) %>%
+#   count(time_value, is.na(val)) %>%
+#   print(n = 2000)
+
+# extract2_die_cut_sum_feature(archive, training_tbl, candidate_features[2L,], predictor_vtols[[candidate_features$predictor[[2L]]]])
+
+
+training_tbl <- archive %>%
+  epix_target_evaluation_data(target, -target_offset, anchor_versions = unique(.$DT$version)) %>%
+  na.omit() %>%
+  mutate(time_value = anchor_version - target_offset, .keep = "unused") %>%
+  {}
+for (i in seq_len(nrow(candidate_features))) {
+  feature <- candidate_features[i,]
+  vtol <- predictor_vtols[[candidate_features$predictor[[i]]]]
+  training_tbl <- training_tbl %>%
+    mutate_new(!!candidate_features$feature[[i]] :=
+                 extract2_die_cut_sum_feature(archive, training_tbl, feature, vtol))
+}
+target_based_candidate_features <- candidate_features$feature[
+  candidate_features$predictor == target
+]
+# Require training instances to have at least one non-NA target-based
+# feature.  Otherwise, if we have a large target data dump without
+# real-time target lag data, these features will appear to have large
+# amounts of missingness and may lead us to (a) throw out all
+# target-based features (if we have auxiliary predictor features with
+# real-time data that make these instances look usable), or (b) refuse
+# to proceed (otherwise).
+training_tbl <- training_tbl %>%
+  filter(!if_all(all_of(target_based_candidate_features), vec_detect_missing))
+
+# check_feature_suitable <- function(training_tbl, training_feature_col) {
+#   # min_time_covered <- as.difftime(90, units = "days")
+#   # min_n_instances <-
+#   # min_instance_feature_ratio <-
+# }
+
+# check_training_tbl_suitable <- function(training_tbl) {
+#   min_time_covered <- as.difftime(90, units = "days")
+#   min_n_instances <-
+#   min_instance_feature_ratio <-
+# }
+
+# TODO need to require consideration of at least one of these features to begin with
+
+# TODO some sort to try to prioritize target-based features a bit
 
 # FIXME TODO still need to check we didn't drop anything in tasksets
 
