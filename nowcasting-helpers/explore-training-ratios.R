@@ -49,6 +49,10 @@ withr::with_rng_version("3.5", withr::with_seed(4120329, {
 })) %>%
   rowMeans()
 
+# Small training set sizes don't seem too bad.  Surprising but not
+# entirely since more rigid approaches worked on weekly data with
+# "small" windows.
+
 
 
 
@@ -68,3 +72,71 @@ quantreg::rq(y ~ x1 + x2)
 quantreg::rq(y ~ x1 + x2, method = "fn")
 
 # maybe don't try as build feature by feature.  just copy over handling from epiforecast-R
+
+
+
+
+
+
+# Dealing with missingness... Sequentially going through list and
+# having an allowed new-missingness proportion and overall missingness
+# proportion?  Greedy algorithm based on priority levels and
+# missingness (how to combine?)?  Existing advice on variable subset
+# selection in the presence of missingness and somewhat low sample
+# size?  Probably assuming MCAR (prob okay if due to lag / sporadic
+# outages, maybe not if censoring...), linear Gaussian (...), ...
+
+# https://theory.stanford.edu/~jvondrak/data/submod-tutorial-1.pdf
+
+# submodular (monotonic) min might apply to finding "min missingness
+# cover", though desired weighting for covariate importance and
+# constraints (e.g., on cardinality) might make difficult again.
+# Might think about geometric programming (inspired?) approach.
+# Plus general-purpose algorithms are complicated...
+
+# With weightings... rather than set function on cols, max priority
+# level 2-D submatrix sum(?) on matrix w/ -Inf for missingness that
+# naturally selects all rows w/o missingness given colset but might
+# have different, helpful/harmful structure? Not nec. contiguous ->
+# not Kadane; GP? no, want mixed sign... except is sum actually the
+# right combiner?;
+# https://yetanothermathprogrammingconsultant.blogspot.com/2021/01/submatrix-with-largest-sum.html
+
+
+
+# https://web.stanford.edu/~rjohari/teaching/notes/226_lecture5_prediction.pdf
+
+# true_mean <- rexp(5)
+# true_covar <- runif(5*5) %>% matrix(5,5) %>% {. %*% t(.)}
+
+# sample1 <- MASS::mvrnorm(10000L, true_mean, true_covar)
+# x1 <- sample1[, 1:4, drop = FALSE]
+# y1 <- sample1[,   5, drop = TRUE]
+# lm(y1 ~ x1) %>% .$residuals %>% {mean(.^2)}
+
+# sample2 <- MASS::mvrnorm(10L, true_mean, true_covar)
+
+# x2 <- sample2[, 1:4, drop = FALSE]
+# x2 <- sample2[,   1, drop = FALSE]
+# x2 <- sample2[,   2, drop = FALSE]
+# x2 <- sample2[,   3, drop = FALSE]
+# x2 <- sample2[,   4, drop = FALSE]
+# x2 <- sample2[, 1:2, drop = FALSE]
+# x2 <- sample2[, 2:3, drop = FALSE]
+# x2 <- sample2[, 3:4, drop = FALSE]
+# y2 <- sample2[,   5, drop = TRUE]
+# lm(y2 ~ x2) %>% .$residuals %>% {mean(.^2)} # just one instance, not expectation, but still not sure how this is supposed to be affine in p... oh, probably means fixed p & covar, variable n
+# lm(y2 ~ x2) %>% predict(newx = x1) %>% {y1 - .} %>% {mean(.^2)}
+
+# https://david-kempe.com/publications/regression.pdf
+
+# https://arxiv.org/pdf/1510.06301
+
+# https://www.math.princeton.edu/events/new-method-best-subset-selection-problem-2019-12-02t210000
+# ... is this the general definition of the NP-hard problem?  while
+# max n incorporated features does seem similar with sparsity
+# constraint, a version just based on expected prediction error
+# factoring in overfitting seems potentially different, and would
+# already be serving a similar purpose...
+
+# https://arxiv.org/html/2511.02740v1
