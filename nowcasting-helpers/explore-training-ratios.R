@@ -53,7 +53,7 @@ withr::with_rng_version("3.5", withr::with_seed(4120329, {
 # entirely since more rigid approaches worked on weekly data with
 # "small" windows.
 
-
+# But what about quantile regression?  Will it misbehave?
 
 
 
@@ -85,6 +85,15 @@ quantreg::rq(y ~ x1 + x2, method = "fn")
 # selection in the presence of missingness and somewhat low sample
 # size?  Probably assuming MCAR (prob okay if due to lag / sporadic
 # outages, maybe not if censoring...), linear Gaussian (...), ...
+# Worried about situation where approx the same 30% of data is missing
+# for several predictors, preventing any from being added even if we
+# allow 50% to be thrown out globally due to only allowing maybe 15%
+# to be thrown out at a time.
+
+# Annoyance of trying to choose priority weights.
+
+# Backward selection based on missingness until we hit boundary?  Does
+# this actually resolve anything with forward?
 
 # https://theory.stanford.edu/~jvondrak/data/submod-tutorial-1.pdf
 
@@ -98,8 +107,12 @@ quantreg::rq(y ~ x1 + x2, method = "fn")
 # level 2-D submatrix sum(?) on matrix w/ -Inf for missingness that
 # naturally selects all rows w/o missingness given colset but might
 # have different, helpful/harmful structure? Not nec. contiguous ->
-# not Kadane; GP? no, want mixed sign... except is sum actually the
+# not Kadane; GP? no, want mixed sign... though, is sum actually the
 # right combiner?;
+# Binary Quadratic Programming?  But general case hard.  Also, some
+# general definitions are using symmetric definition... can we actually
+# transform?
+# Any relation to SVD?
 # https://yetanothermathprogrammingconsultant.blogspot.com/2021/01/submatrix-with-largest-sum.html
 
 
@@ -125,8 +138,10 @@ quantreg::rq(y ~ x1 + x2, method = "fn")
 # x2 <- sample2[, 2:3, drop = FALSE]
 # x2 <- sample2[, 3:4, drop = FALSE]
 # y2 <- sample2[,   5, drop = TRUE]
-# lm(y2 ~ x2) %>% .$residuals %>% {mean(.^2)} # just one instance, not expectation, but still not sure how this is supposed to be affine in p... oh, probably means fixed p & covar, variable n
+# lm(y2 ~ x2) %>% .$residuals %>% {mean(.^2)} # just one instance, not expectation, but still not sure how this is supposed to be affine in p... oh, probably means fixed p & covar, variable n?
 # lm(y2 ~ x2) %>% predict(newx = x1) %>% {y1 - .} %>% {mean(.^2)}
+
+# https://pmc.ncbi.nlm.nih.gov/articles/PMC6519266/
 
 # https://david-kempe.com/publications/regression.pdf
 
@@ -140,3 +155,12 @@ quantreg::rq(y ~ x1 + x2, method = "fn")
 # already be serving a similar purpose...
 
 # https://arxiv.org/html/2511.02740v1
+
+# Bh = (XT X)^{-1} XT Y
+# same X
+# Yh = Ynh = X (XT X)^{-1} XT Y
+# fixed X bad assumption?
+
+# E || Yn - Ynh ||F^2
+# = E || Xn B + Nn - Xn Bh ||F^2
+# = E || Xn (B - Bh) + Nn ||F^2
