@@ -3,6 +3,7 @@ library(dplyr)
 library(tidyr)
 library(purrr)
 library(epidatr)
+library(vctrs)
 
 cce <- covidcast_epidata()
 
@@ -201,8 +202,10 @@ extract2_die_cut_sum_feature <- function(archive, ekts, die_cut_sum_feature, vto
 training_tbl <- archive %>%
   epix_target_evaluation_data(target, -target_offset, anchor_versions = unique(.$DT$version)) %>%
   na.omit() %>%
-  mutate(time_value = anchor_version - target_offset, .keep = "unused") %>%
+  # mutate(time_value = anchor_version - target_offset, .keep = "unused") %>%
+  mutate(time_value = version_get_containing_time_value(anchor_version, archive), .keep = "unused") %>%
   {}
+actual_target <- vctrs::vec_set_difference(names(training_tbl), key_colnames(latest))
 for (i in seq_len(nrow(candidate_features))) {
   feature <- candidate_features[i,]
   vtol <- predictor_vtols[[candidate_features$predictor[[i]]]]
@@ -222,6 +225,52 @@ target_based_candidate_features <- candidate_features$feature[
 # to proceed (otherwise).
 training_tbl <- training_tbl %>%
   filter(!if_all(all_of(target_based_candidate_features), vec_detect_missing))
+training_tbl <- training_tbl %>%
+  mutate(intercept = 1)
+all_features <- c(candidate_features$feature, "intercept")
+
+
+training_tbl %>%
+  summarize(
+    .by = key_colnames(latest, exclude = "time_value"),
+    across(all_of(all_features), function(feature_col) {
+      include <- !vec_detect_missing(feature_col)
+      # TODO check enough data
+      x <- cbind(feature = feature_col, one = 1)[include, ]
+      y <- pick(all_of(actual_target))[[1L]][include]
+      print(x)
+      print(y)
+      result <- lm.fit(x, y)$coef
+      print(result)
+    })
+  )
+
+testing_tbl <- taskset %>%
+  mutate(time_value = .env$testing_reference_time)
+for (i in seq_len(nrow(candidate_features))) {
+  feature <- candidate_features[i,]
+  vtol <- 0
+  testing_tbl <- testing_tbl %>%
+    mutate_new(!!candidate_features$feature[[i]] :=
+                 extract2_die_cut_sum_feature(archive, testing_tbl, feature, vtol))
+}
+
+# testing_tbl %>%
+#   as_epi_df() %>%
+#   autoplot(!!!syms(val_colnames(.)), .facet_by = "geo_value") %>%
+#   `+`(geom_point(aes(y = .response)))
+
+# TODO scale/standardize/weight target (&feats along with?) for weighting & intercept adjustment based on mean abs ~diff y by epikey... or have own intercept term that gets scaled to separate this effect out?  though still might be good...
+
+# TODO normalize/sensorize feats by epikey, throwing out feats without enough to ...
+
+# training_tbl %>%
+#   summarize(across(all_of(candidate_features$feature), function(feature_col) {
+#     # TODO need to normalize/sensorize first... and we might also want that to be able to split tasksets, but maybe accept not having for now...
+#     #
+#     # FIXME
+#     mean(abs(quantreg::rq.fit(feature_col, .[[actual_target]], method = "fn")$residuals), na.rm = TRUE)
+#   }))
 
 # check_feature_suitable <- function(training_tbl, training_feature_col) {
 #   # min_time_covered <- as.difftime(90, units = "days")
