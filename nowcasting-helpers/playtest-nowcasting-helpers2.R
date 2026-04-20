@@ -55,8 +55,10 @@ predictors_vtol <- predictors_confkeys %>%
   })
 
 sum_features_spec <- bind_rows(
-  tibble(predictor = "admissions", base_offset = 0, add_offset = 7 * -3:3, before = 6, after = 0),
-  tibble(predictor = "google", base_offset = -7*2, add_offset = 7 * -3:3, before = 0, after = 0),
+  # tibble(predictor = "admissions", base_offset = 0, add_offset = 7 * -3:3, before = 6, after = 0),
+  # tibble(predictor = "google", base_offset = -7*2, add_offset = 7 * -3:3, before = 0, after = 0),
+  tibble(predictor = "admissions", base_offset = 0, add_offset = 7 * -5:5, before = 6, after = 0),
+  tibble(predictor = "google", base_offset = -7*2, add_offset = 7 * -5:5, before = 0, after = 0),
   )
 
 sum_features_respec <- sum_features_spec %>%
@@ -229,21 +231,45 @@ training_tbl <- training_tbl %>%
   mutate(intercept = 1)
 all_features <- c(candidate_features$feature, "intercept")
 
-
-training_tbl %>%
+normalization_models <-
+  training_tbl %>%
   summarize(
     .by = key_colnames(latest, exclude = "time_value"),
     across(all_of(all_features), function(feature_col) {
       include <- !vec_detect_missing(feature_col)
-      # TODO check enough data
-      x <- cbind(feature = feature_col, one = 1)[include, ]
-      y <- pick(all_of(actual_target))[[1L]][include]
-      print(x)
-      print(y)
-      result <- lm.fit(x, y)$coef
-      print(result)
+      if (sum(include) >= 10L) {
+        x <- cbind(feature = feature_col, one = 1)[include, ]
+        y <- pick(all_of(actual_target))[[1L]][include]
+        as_tibble(list(lm.fit(x, y)$coefficients))
+      } else {
+        tibble(feature = NA, one = NA)
+      }
     })
   )
+
+# normalization_values <- .......
+
+# then can get NAs in normalization values, and maybe pull out some
+# common taskset splitting code from lag case
+
+# just one coef NA possible?  is that from redundancy?  prob not bad
+# to exclude if redundant with `one`
+
+# TODO check enough data... if not enough and we are in the
+# taskset, then reject feature; otherwise, reject training
+# instances...
+
+# cli_warn("For ({cur_group()}), {cur_column()}:
+#           there is a testing-time value available,
+#           but not enough training data to figure out how normalize it
+#           .................")
+
+# XXX ... or go ahead and task split again...
+
+# XXX geopooling is likely going to need some interaction terms and
+# maybe special regression methods to be work.  Already potentially
+# need other special regression/outlier-handling even in stratified,
+# and maybe geotemporal.  Start with just stratified, in another file.
 
 testing_tbl <- taskset %>%
   mutate(time_value = .env$testing_reference_time)
@@ -254,6 +280,30 @@ for (i in seq_len(nrow(candidate_features))) {
     mutate_new(!!candidate_features$feature[[i]] :=
                  extract2_die_cut_sum_feature(archive, testing_tbl, feature, vtol))
 }
+testing_tbl <- testing_tbl %>%
+  mutate(intercept = 1)
+
+lapply(all_features, function(feature) {
+  if (feature %in% candidate_features$feature) {
+    respec <- sum_features_respec %>%
+      filter(.data$feature == .env$feature)
+    # testing_tbl %>%
+    #   select(all_of(c(key_colnames(latest), rlang::chr(!!respec$predictor := feature)))) %>%
+    #   mutate(time_value = .data$time_value + .env$respec$feature_ref_offset)
+    testing_tbl %>%
+      select(all_of(c(key_colnames(latest), "value" = feature))) %>%
+      mutate(predictor = .env$respec$predictor) %>%
+      mutate(time_value = .data$time_value + .env$respec$feature_ref_offset)
+  } else {
+    testing_tbl %>%
+      select(all_of(c(key_colnames(latest), "value" = feature))) %>%
+      mutate(predictor = feature)
+  }
+}) %>%
+  bind_rows() %>%
+  pivot_wider(names_from = "predictor", values_from = "value") %>%
+  as_epi_df(other_keys = attr(latest, "metadata")$other_keys) %>%
+  autoplot(all_of(val_colnames(.)))
 
 # testing_tbl %>%
 #   as_epi_df() %>%
