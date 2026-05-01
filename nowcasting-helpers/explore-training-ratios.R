@@ -53,7 +53,20 @@ withr::with_rng_version("3.5", withr::with_seed(4120329, {
 # entirely since more rigid approaches worked on weekly data with
 # "small" windows.
 
-# But what about quantile regression?  Will it misbehave?
+# But what about extreme quantile regression?  Will it misbehave?
+
+
+
+
+replicate(1000, pnorm(lm.fit(cbind(rep(1, 5)), rnorm(5)) %>% .$coefficients)) %>% quantile()
+
+replicate(1000, pnorm(quantreg::rq.fit(cbind(rep(1, 5)), rnorm(5), method = "fn") %>% .$coefficients)) %>% quantile()
+
+
+
+replicate(1000, pnorm(lm.fit(cbind(rep(1, 15)), rnorm(15)) %>% .$coefficients)) %>% quantile()
+
+replicate(1000, pnorm(quantreg::rq.fit(cbind(rep(1, 15)), rnorm(15), method = "fn") %>% .$coefficients)) %>% quantile()
 
 
 
@@ -164,3 +177,7 @@ quantreg::rq(y ~ x1 + x2, method = "fn")
 # E || Yn - Ynh ||F^2
 # = E || Xn B + Nn - Xn Bh ||F^2
 # = E || Xn (B - Bh) + Nn ||F^2
+
+
+
+
