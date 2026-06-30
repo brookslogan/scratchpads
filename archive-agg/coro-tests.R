@@ -548,4 +548,11 @@ min_time = 5, max_iterations = 1e9)
 
 # TODO check if lapply has guaranteed sequential to see if it can be used in as.list.<itr>
 
+# (Don't see anything in ?lapply.  Not sure if R internals docs might
+# say.  And maybe patch notes from version that fixed some issues with
+# changed objects in closures might say.  There is source code here;
+# maybe comment might reference a contract
+# https://github.com/wch/r-source/blob/d5e28ead42751bc5a46bef44b3f351642c4d60d3/src/main/apply.c#L41
+# If find answer, maybe answer corresponding stackoverflow question that saw.)
+
 # TODO try native-backed iterators?
