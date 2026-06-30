@@ -8,6 +8,7 @@ library(coro)
 library(iterators)
 library(itertools2)
 library(vctrs)
+library(purrr)
 
 snap_generator_factory <- generator(function(subtbls) {
   prev_snap <- NULL
@@ -205,6 +206,8 @@ loop(for (x in i) print(x))
 
 # kind of lost trying to build on iterators package...
 
+# TODO check if coro stuff below is missing necessary `close` arg handling
+
 cached_exhausted <- exhausted()
 
 # TODO rename... doesn't have to be list
@@ -286,7 +289,28 @@ bench::mark(
   #
   # Using `loop` is slow, and not using an itr_for_each / itr_loop fn for others;
   # not fair.  Use similar manual iteration:
+  #
+  # XXX using `loop` no longer slow? based on benchmark above this one?  no, it's slow, based on below entry?
   repeat {
+    e <- icoro1()
+    if (identical(e, cached_exhausted)) break
+    e
+  }
+},
+coroloop = {
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(function(x) x^2)
+  loop(for (e in icoro1) {
+    e
+  })
+},
+corosizedminusattroverhead = {
+  # this still includes overhead from iterator adapter written without
+  # considering sizedness of input.  but to even forward size it would
+  # have to have some awareness.  but might involve writing two
+  # versions of each adapter to remove check overhead.  though that
+  # may be the case for everything if have sized/unsized dichotomy.
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(function(x) x^2)
+  for (i in 1:1000) {
     e <- icoro1()
     if (identical(e, cached_exhausted)) break
     e
@@ -310,6 +334,7 @@ bench::mark(
   f <- function(x) x^2
   for (x in 1:1000) {
     x2 <- f(x)
+    x2
   }
 },
 check = FALSE,
