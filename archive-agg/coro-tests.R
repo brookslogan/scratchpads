@@ -276,6 +276,10 @@ bench::mark(
   }
 },
 {
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb0(function(x) x^2)
+  itrb_for_each(ib1, function(x) x)
+},
+{
   ic1 <- list_itrc(1:1000) %>% itrc_map_itrc(function(x) x^2)
   for (i in seq_len(attr(ic1, "epiprocess::size"))) {
     ic1(i)
@@ -339,3 +343,209 @@ corosizedminusattroverhead = {
 },
 check = FALSE,
 min_time = 5, max_iterations = 1e9)
+# ^ XXX don't understand how itre is beating out itrb.  It appears to have
+# more checks than the checked iterb map.  There is an extra layer of
+# delegation fetching the size in b, but that doesn't seem enough to
+# offset.  (Also, in e, `exact = TRUE` may actually slow `attr()`
+# down; we should have guarantee or not whether exists based on class,
+# though this seems even more toward requiring separate function
+# bodies for adapters on separate iterator types.  Though the `close`
+# arg vs. `i` arg might already necessitate this anyway?)
+#
+# : it was the nature of the for-each looping.  we shouldn't be
+# attempting prints either way, and don't know of any smart
+# optimization that eliminates stuff...
+#
+# TODO need to check back on other comparisons to see if also not fair
+
+
+bench::mark(
+{
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb(function(x) x^2)
+  as.list(ib1)
+},
+{
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb0(function(x) x^2)
+  as.list(ib1)
+},
+{
+  ie1 <- list_itre(1:1000) %>% itre_map_itre(function(x) x^2)
+  as.list(ie1)
+},
+check = FALSE,
+min_time = 5, max_iterations = 1e9)
+# ^ this makes more sense.  Maybe test this more broadly.
+
+bench::mark(
+{
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb(function(x) x^2)
+  as.list(ib1)
+},
+{
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb0(function(x) x^2)
+  as.list(ib1)
+},
+{
+  ic1 <- list_itrc(1:1000) %>% itrc_map_itrc(function(x) x^2)
+  as.list(ic1)
+},
+{
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(function(x) x^2)
+  res <- vector("list", 1000L) # XXX cheating here but with iteration logic below... need to decide which
+  # loop(for (e in icoro1) {
+  #   e
+  # })
+  #
+  # Using `loop` is slow, and not using an itr_for_each / itr_loop fn for others;
+  # not fair.  Use similar manual iteration:
+  #
+  # XXX using `loop` no longer slow? based on benchmark above this one?  no, it's slow, based on below entry?
+  i <- 0L
+  repeat {
+    e <- icoro1()
+    if (identical(e, cached_exhausted)) break
+    res[[i <<- i + 1L]] <- e
+  }
+  res
+},
+coroloop = {
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(function(x) x^2)
+  res <- vector("list", 1000L)
+  i <- 0L
+  loop(for (e in icoro1) {
+    res[[i <<- i + 1L]] <- e
+  })
+  res
+},
+corosizedminusattroverhead = {
+  # this still includes overhead from iterator adapter written without
+  # considering sizedness of input.  but to even forward size it would
+  # have to have some awareness.  but might involve writing two
+  # versions of each adapter to remove check overhead.  though that
+  # may be the case for everything if have sized/unsized dichotomy.
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(function(x) x^2)
+  res <- vector("list", 1000L)
+  for (i in 1:1000) {
+    e <- icoro1()
+    if (identical(e, cached_exhausted)) break
+    res[[i]] <- e
+  }
+  res
+},
+{
+  res <- vector("list", 1000L)
+  id1 <- list_itrd(1:1000) %>% itrd_map_itrd(function(x) x^2)
+  # for (i in seq_len(attr(id1, "epiprocess::size"))) {
+  for (i in seq_len(1000L)) {
+    res[[i]] <- id1(i)
+  }
+  res
+},
+{
+  ie1 <- list_itre(1:1000) %>% itre_map_itre(function(x) x^2)
+  as.list(ie1)
+},
+{
+  f <- function(x) x^2
+  res <- vector("list", 1000L)
+  for (x in 1:1000) {
+    res[[x]] <- f(x)
+  }
+  res
+},
+{
+  f <- h
+  lapply(1:1000, f)
+},
+check = FALSE,
+min_time = 5, max_iterations = 1e9)
+
+h <- function(x) {x^2 + 1}
+bench::mark(
+{
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb(h)
+  as.list(ib1)
+},
+{
+  ib1 <- list_itrb(1:1000) %>% itrb_map_itrb0(h)
+  as.list(ib1)
+},
+{
+  ic1 <- list_itrc(1:1000) %>% itrc_map_itrc(h)
+  as.list(ic1)
+},
+{
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(h)
+  res <- vector("list", 1000L) # XXX cheating here but with iteration logic below... need to decide which
+  # loop(for (e in icoro1) {
+  #   e
+  # })
+  #
+  # Using `loop` is slow, and not using an itr_for_each / itr_loop fn for others;
+  # not fair.  Use similar manual iteration:
+  #
+  # XXX using `loop` no longer slow? based on benchmark above this one?  no, it's slow, based on below entry?
+  i <- 0L
+  repeat {
+    e <- icoro1()
+    if (identical(e, cached_exhausted)) break
+    res[[i <<- i + 1L]] <- e
+  }
+  res
+},
+coroloop = {
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(h)
+  res <- vector("list", 1000L)
+  i <- 0L
+  loop(for (e in icoro1) {
+    res[[i <<- i + 1L]] <- e
+  })
+  res
+},
+corosizedminusattroverhead = {
+  # this still includes overhead from iterator adapter written without
+  # considering sizedness of input.  but to even forward size it would
+  # have to have some awareness.  but might involve writing two
+  # versions of each adapter to remove check overhead.  though that
+  # may be the case for everything if have sized/unsized dichotomy.
+  icoro1 <- list_itrcoro(1:1000) %>% itrcoro_map_itrcoro(h)
+  res <- vector("list", 1000L)
+  for (i in 1:1000) {
+    e <- icoro1()
+    if (identical(e, cached_exhausted)) break
+    res[[i]] <- e
+  }
+  res
+},
+{
+  res <- vector("list", 1000L)
+  id1 <- list_itrd(1:1000) %>% itrd_map_itrd(h)
+  # for (i in seq_len(attr(id1, "epiprocess::size"))) {
+  for (i in seq_len(1000L)) {
+    res[[i]] <- id1(i)
+  }
+  res
+},
+{
+  ie1 <- list_itre(1:1000) %>% itre_map_itre(h)
+  as.list(ie1)
+},
+{
+  f <- h
+  res <- vector("list", 1000L)
+
+  for (x in 1:1000) {
+    res[[x]] <- f(x)
+  }
+  res
+},
+{
+  f <- h
+  lapply(1:1000, f)
+},
+check = FALSE,
+min_time = 5, max_iterations = 1e9)
+
+# TODO check if lapply has guaranteed sequential to see if it can be used in as.list.<itr>
+
+# TODO try native-backed iterators?

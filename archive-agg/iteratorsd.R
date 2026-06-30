@@ -5,9 +5,9 @@ cached_exhausted <- exhausted()
 new_itrd <- function(f) {
   assert_function(f, args = "i")
 
-  itrc <- f
-  class(itrc) <- "itrd"
-  itrc
+  itrd <- f
+  class(itrd) <- "itrd"
+  itrd
 }
 
 # TODO rename? input doesn't have to be list

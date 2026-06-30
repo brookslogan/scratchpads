@@ -33,6 +33,12 @@ itrb_size <- function(itrb) {
   attr(itrb, "epiprocess::size")
 }
 
+itrb_for_each <- function(itrb, f) {
+  for (i in seq_len(attr(itrb, "epiprocess::size"))) {
+    f(itrb(i))
+  }
+}
+
 # TODO rename? input doesn't have to be list
 list_itrb <- function(x) {
   new_epi_sized_iteratorb(
