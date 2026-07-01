@@ -35,6 +35,16 @@ fn map_rs(x:List, f:Robj) -> List {
 }
 ')
 
+# https://gist.github.com/Thell/861d464c7c85ffd4c7285a894b7715f4
+# extendr_deps = list(
+#   "extendr-api" = list(git = "https://github.com/extendr/extendr")
+# ),
+
+# https://github.com/extendr/arrow-extendr/blob/0ad25c13c9d63d68e6bf7b268a928b6e9d62c49c/src/to.rs#L11
+# use extendr_api::{error::Result, prelude::*};
+# ^ source of Result<Robj>?
+
+
 bench::mark(
   # map_rs(as.list(1:5), function(x) x^2),
   # lapply(as.list(1:5), function(x) x^2),
