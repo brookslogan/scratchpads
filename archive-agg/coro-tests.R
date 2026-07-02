@@ -533,9 +533,9 @@ corosizedminusattroverhead = {
 {
   f <- h
   res <- vector("list", 1000L)
-
-  for (x in 1:1000) {
-    res[[x]] <- f(x)
+  x <- 1:1000
+  for (i in seq_along(x)) {
+    res[[i]] <- f(x[[i]])
   }
   res
 },
