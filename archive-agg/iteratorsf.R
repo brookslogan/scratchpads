@@ -42,8 +42,29 @@ fn map_rs(x:List, f:Robj) -> List {
 
 # https://github.com/extendr/arrow-extendr/blob/0ad25c13c9d63d68e6bf7b268a928b6e9d62c49c/src/to.rs#L11
 # use extendr_api::{error::Result, prelude::*};
-# ^ source of Result<Robj>?
+# ^ linking to source of Result<Robj>?
+# -> https://github.com/extendr/extendr/blob/main/extendr-api/src/error.rs
 
+rextendr::rust_source(
+  profile = "release",
+  code = '
+#[extendr]
+fn index_iterator_to_list(x:Robj) -> Result<List, Error>  {
+  if let Some(x_size) = x.get_attrib("epiprocess::size") {
+    Ok(
+      (0..(x_size.as_integer().ok_or("itr size was not integer")?))
+      .map(|i| x.call(Pairlist::from_pairs([("", i)])).unwrap())
+      .collect()
+    )
+  } else {
+    Ok(list!())
+  }
+}
+')
+
+list_itre(as.list(1:1000)) %>%
+  itre_map_itre(function(x) x^2) %>%
+  index_iterator_to_list()
 
 bench::mark(
   # map_rs(as.list(1:5), function(x) x^2),

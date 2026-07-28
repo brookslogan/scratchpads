@@ -460,7 +460,8 @@ corosizedminusattroverhead = {
 check = FALSE,
 min_time = 5, max_iterations = 1e9)
 
-h <- function(x) {x^2 + 1}
+# h <- function(x) {x^2 + 1}
+h <- function(x) {mean(x + 1:10)}
 bench::mark(
 {
   ib1 <- list_itrb(1:1000) %>% itrb_map_itrb(h)
@@ -469,6 +470,18 @@ bench::mark(
 {
   ib1 <- list_itrb(1:1000) %>% itrb_map_itrb0(h)
   as.list(ib1)
+},
+{
+  ib1 <- list_itrb(1:1000) |> itrb_map_itrb0(h)
+  as.list(ib1)
+},
+{
+  ib1 <- list_itrb(1:1000) |> itrb_map_itrb0(h)
+  lapply(seq_len(attr(ib1, "epiprocess::size")), ib1)
+},
+{
+  ib1 <- list_itrb(1:1000) |> itrb_map_itrb0(h)
+  index_iterator_to_list(ib1)
 },
 {
   ic1 <- list_itrc(1:1000) %>% itrc_map_itrc(h)
@@ -529,6 +542,14 @@ corosizedminusattroverhead = {
 {
   ie1 <- list_itre(1:1000) %>% itre_map_itre(h)
   as.list(ie1)
+},
+{
+  ie1 <- list_itre(1:1000) %>% itre_map_itre(h)
+  lapply(seq_len(attr(ie1, "epiprocess::size")), ie1)
+},
+{
+  ie1 <- list_itre(1:1000) %>% itre_map_itre(h)
+  index_iterator_to_list(ie1)
 },
 {
   f <- h
