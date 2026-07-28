@@ -77,6 +77,14 @@ tasksets_candidate_features <- lapply(seq_len(nrow(sum_features_respec)), functi
   feature_ref_offset <- sum_features_respec$feature_ref_offset[[sum_feature_i]]
   before <- sum_features_respec$before[[sum_feature_i]]
   after <- sum_features_respec$after[[sum_feature_i]]
+  # FIXME TODO don't let introduction of a more recent wday tank
+  # availability of the most recent week die cut sum.  Maybe express
+  # as days first, and apply some sort of rules similar to
+  # post-aggregation features selection?  Or apply something like
+  # these rules within each week, as if week sum was a target (except
+  # we know the parameters for the sum...)?  Or wait for the die cut
+  # sum to be excluded based on later selection criteria, and set up
+  # some sort of backoff that drops wdays?
   latest %>%
     select(all_of(c(key_colnames(.), predictor))) %>%
     filter(between(.data$time_value,
