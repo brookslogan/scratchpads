@@ -116,20 +116,39 @@ tvlag_var <- function(source_name, value_name, tlag, vlag) {
 # perhaps necessary; the query keys can change, and that would mean
 # that column references would need to also chain back to vars for
 # recomputation on missing keys, and could lead to unnecessary
-# recomputation if don't have dedicated marker for not-computed-yet...
+# recomputation if don't have dedicated marker for
+# not-computed-yet... Except the dependency variable approach also
+# needs access to name mapping for better printing, or for var name to
+# be stored in var object rather than what seemed like preferred
+# approach with it being more external --- or not; was thinking of var
+# name aliasing as a separate op and that would just define it as
+# another variable with the preferred name stored as the "default"
+# name, accessible downstream.
 
 reltv_var <- function(indicator_name, time_rel_rtv, version_rel_rtv, version_tol) {
   assert_string(indicator_name)
   assert_scalar(time_rel_rtv)
   assert_scalar(version_rel_rtv)
   assert_scalar(version_tol)
-  function(request_keys, source_data) {
+  mapping <- function(request_keys, source_data) {
     assert_class(request_keys, "tbl_df")
     assert_class(source_data, "epi_archive")
     assert_names(names(request_keys), permutation.of = key_colnames(source_data, exclude = "version"))
     #
     extract2_tvoffset(source_data, request_keys, indicator_name, time_rel_rtv, version_rel_rtv, version_tol)
   }
+  class(mapping) <- c("reltv_var", "var")
+  mapping
+}
+
+format_with_sign <- function(x, ...) {
+  paste0(fifelse(x >= 0, "+", ""), format(x, ...))
+}
+# TODO 0 --> empty
+
+format.reltv_var <- function(x, ...) {
+  e <- environment(x)
+  glue::glue("{e$indicator_name}_{{rtv{format_with_sign(e$time_rel_rtv)}}}^(rtv{format_with_sign(e$version_rel_rtv)})")
 }
 
 latest <- archive_cases_dv_subset %>% epix_as_of_latest()
