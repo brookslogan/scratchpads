@@ -84,20 +84,6 @@ tvlag_var <- function(source_name, value_name, tlag, vlag) {
 
 # XXX special column naming vs. role tracking...
 
-reltv_var <- function(indicator_name, time_rel_rtv, version_rel_rtv) {
-  indicator_name
-  time_rel_rtv
-  version_rel_rtv
-  function(request_keys, source_data) {
-    assert_class(request_keys, "tbl_df")
-    assert_class(source_data, "epi_archive")
-    assert_names(names(request_keys), permutation.of = key_colnames(source_data, exclude = "version"))
-    #
-    request_keys$version <- request_keys$time_value + time_rel_rtv # define
-    request_keys$time_value <- request_keys$time_value + time_rel_rtv # shift
-    stop("missing vtol")
-    stop("...... impl is just extract2_tvoffset? adjust names to match one way or the other?")
-    stop("issues getting default vtol... likely want vtol consistent between train and test, but in current design do not have access to train.")
     # - Do we need to construct the variable with the training set
     #   available?  Allows setting vtol right there, as well as name
     #   validation, although still need name validation for the test
@@ -110,15 +96,68 @@ reltv_var <- function(indicator_name, time_rel_rtv, version_rel_rtv) {
     #     construction... and that was the plan anyway, for this to be
     #     selected with some "latest" helper, and for this to be able
     #     to work with die cut sums, which for "latest" would use test
-    #     proxy from train.  And for pipeline, will have some way to
+    #     proxy from train.  For pipeline, will have some way to
     #     access parameters... but seems messy.  And this may blow up
-    #     the "variables simpler/cleaner than segments" idea.
+    #     the "variables simpler/cleaner than segments" idea.  Except
+    #     part of potential variables plan was some rules related to
+    #     reproducibility that could be used for smart per-row
+    #     caching, which tie down even more to pre-computing
+    #     parameters that depend on multiple rows.
     #
     # Also, what about delta between "last two" versions?  how does
     # vtol approach work / break here?  do we just need pre-processing
     # to a strict no-tol format?
+
+# XXX for transforms, should request_keys be called something else and
+# allowed to have extra columns? but then do we need to explicitly
+# state which are the request key cols to ensure joins don't go wrong?
+# and also need to route resolved dependency col names... perhaps
+# cleaner but slower to rely on variable dependencies plus caching? or
+# perhaps necessary; the query keys can change, and that would mean
+# that column references would need to also chain back to vars for
+# recomputation on missing keys, and could lead to unnecessary
+# recomputation if don't have dedicated marker for not-computed-yet...
+
+reltv_var <- function(indicator_name, time_rel_rtv, version_rel_rtv, version_tol) {
+  assert_string(indicator_name)
+  assert_scalar(time_rel_rtv)
+  assert_scalar(version_rel_rtv)
+  assert_scalar(version_tol)
+  function(request_keys, source_data) {
+    assert_class(request_keys, "tbl_df")
+    assert_class(source_data, "epi_archive")
+    assert_names(names(request_keys), permutation.of = key_colnames(source_data, exclude = "version"))
+    #
+    extract2_tvoffset(source_data, request_keys, indicator_name, time_rel_rtv, version_rel_rtv, version_tol)
   }
 }
+
+latest <- archive_cases_dv_subset %>% epix_as_of_latest()
+# ekts <- latest %>% select(all_of(key_colnames(.)))
+var1 <- reltv_var("percent_cli", -as.difftime(7, units = "days"), as.difftime(0, units = "days"), as.difftime(0, units = "days"))
+var2 <- reltv_var("percent_cli", -as.difftime(14, units = "days"), as.difftime(0, units = "days"), as.difftime(0, units = "days"))
+var3 <- reltv_var("percent_cli", -as.difftime(14, units = "days"), as.difftime(7, units = "days"), as.difftime(0, units = "days"))
+latest %>%
+  mutate(v1 = var1(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
+  mutate(v2 = var2(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
+  mutate(v3 = var3(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
+  drop_na(percent_cli) %>%
+  drop_na(v1) %>%
+  as_epi_df() %>%
+  autoplot(c(percent_cli, v1, v2, v3), .color_by = ".response", .facet_by = "all_keys")
+
+# TODO print and default-var-name (default var names? might make
+# packed vs unpacked logic complex though) methods for variables?
+# multi-col output already needs to have names in object if outputting
+# tibble, so if assume multicolunpack as a uniform interface, could
+# just put default names in the tibble; this does require downstream
+# to be able to override with multinames.  Could also consider similar
+# but no unpacking, which also seems to solve some potential naming
+# conflict issues, but then that may result in confusion/bugs when
+# referring to wrapped single cols.  Or something like mutate
+# interface with unpack-only-unnamed-expr-yielding-data-frame-cols?
+
+# TODO lag range variables for more succinct printing of selected variables?
 
 # Should variables have separate functions for training and testing (and evaluation?) fetching?
 # - Separate: one path to allowing differing behavior for target
