@@ -141,6 +141,12 @@ reltv_var <- function(indicator_name, time_rel_rtv, version_rel_rtv, version_tol
   mapping
 }
 
+# XXX do we need var domain function? (..... then perf & impl work
+# tension between domain+lookup vs. just computing full
+# archive... latter would use different approach, e.g., tshift
+# mutating time column vs. doing that, then reversing it and
+# performing a join...)
+
 format_with_sign <- function(x, ...) {
   paste0(fifelse(x >= 0, "+", ""), format(x, ...))
 }
@@ -164,6 +170,16 @@ latest %>%
   drop_na(v1) %>%
   as_epi_df() %>%
   autoplot(c(percent_cli, v1, v2, v3), .color_by = ".response", .facet_by = "all_keys")
+
+latest_nearby_lags <- function(archive, target_horizon, predictor_name, predictor_center_lag, lag_window_min, lag_window_max) {
+  latest <- archive %>% epix_as_of_latest()
+  # FIXME types
+  min_lag <- - target_horizon + predictor_center_lag + lag_window_min
+  max_lag <- - target_horizon + predictor_center_lag + lag_window_max
+  # need reference time
+  #
+  # confkeys stuff, vtol... see playtesting 2
+}
 
 # TODO print and default-var-name (default var names? might make
 # packed vs unpacked logic complex though) methods for variables?
