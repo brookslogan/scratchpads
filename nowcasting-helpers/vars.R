@@ -157,20 +157,6 @@ format.reltv_var <- function(x, ...) {
   glue::glue("{e$indicator_name}_{{rtv{format_with_sign(e$time_rel_rtv)}}}^(rtv{format_with_sign(e$version_rel_rtv)})")
 }
 
-latest <- archive_cases_dv_subset %>% epix_as_of_latest()
-# ekts <- latest %>% select(all_of(key_colnames(.)))
-var1 <- reltv_var("percent_cli", -as.difftime(7, units = "days"), as.difftime(0, units = "days"), as.difftime(0, units = "days"))
-var2 <- reltv_var("percent_cli", -as.difftime(14, units = "days"), as.difftime(0, units = "days"), as.difftime(0, units = "days"))
-var3 <- reltv_var("percent_cli", -as.difftime(14, units = "days"), as.difftime(7, units = "days"), as.difftime(0, units = "days"))
-latest %>%
-  mutate(v1 = var1(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
-  mutate(v2 = var2(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
-  mutate(v3 = var3(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
-  drop_na(percent_cli) %>%
-  drop_na(v1) %>%
-  as_epi_df() %>%
-  autoplot(c(percent_cli, v1, v2, v3), .color_by = ".response", .facet_by = "all_keys")
-
 latest_nearby_lags <- function(archive, target_horizon, predictor_name, predictor_center_lag, lag_window_min, lag_window_max) {
   latest <- archive %>% epix_as_of_latest()
   # FIXME types
@@ -224,3 +210,108 @@ latest_nearby_lags <- function(archive, target_horizon, predictor_name, predicto
 #   test, maybe, but there's also evaluation, and maybe other
 #   contexts.  More hassle to write and are we really going to make
 #   the exact desired combination of choices desired?
+
+latest <- archive_cases_dv_subset %>% epix_as_of_latest()
+# ekts <- latest %>% select(all_of(key_colnames(.)))
+var1 <- reltv_var("percent_cli", -as.difftime(7, units = "days"), as.difftime(0, units = "days"), as.difftime(0, units = "days"))
+var2 <- reltv_var("percent_cli", -as.difftime(14, units = "days"), as.difftime(0, units = "days"), as.difftime(0, units = "days"))
+var3 <- reltv_var("percent_cli", -as.difftime(14, units = "days"), as.difftime(7, units = "days"), as.difftime(0, units = "days"))
+latest %>%
+  mutate(v1 = var1(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
+  mutate(v2 = var2(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
+  mutate(v3 = var3(pick(all_of(key_colnames(.))), archive_cases_dv_subset)) %>%
+  drop_na(percent_cli) %>%
+  drop_na(v1) %>%
+  as_epi_df() %>%
+  autoplot(c(percent_cli, v1, v2, v3), .color_by = ".response", .facet_by = "all_keys")
+
+
+archives_data <- list(
+  epidata_archive("nhsn", "confirmed_admissions_covid_ew", "state"),
+  epidata_archive("nssp", "pct_ed_visits_covid", "state")
+)
+
+# full_archive <- bind_rows(archives_data) %>%
+#   as_epi_archive()
+
+# need changes from dev to make above work
+
+full_archive <- archives_data %>%
+  lapply(function(x) pivot_wider(x, id_cols = c("geo_value", "reference_time", "report_time"), names_from = "signal", values_from = "value")) %>%
+  lapply(function(x) as_epi_archive(x, time_value = reference_time, version = report_time)) %>%
+  Reduce(f=epix_merge) %>%
+  set_time_week_end("Sat") %>%
+  {}
+
+nowcast_version <- as.Date("2025-02-05")
+archive <- full_archive %>%
+  epix_as_of(nowcast_version, all_versions = TRUE) %>%
+  filter(geo_value == geo_value[[1L]])
+testing_reference_time <- version_get_containing_time_value(nowcast_version, archive)
+latest <- archive %>% epix_as_of_latest()
+
+target <- "confirmed_admissions_covid_ew"
+target_offset <- 7
+predictors <- c("confirmed_admissions_covid_ew", "pct_ed_visits_covid")
+
+features_spec <- bind_rows(
+  tibble(predictor = "confirmed_admissions_covid_ew", base_offset = 0, add_offset = 7 * -5:5),
+  tibble(predictor = "pct_ed_visits_covid", base_offset = -7 * 1, add_offset = 7 * -5:5)
+)
+
+features_respec <- features_spec %>%
+  arrange(abs(add_offset)) %>%
+  mutate(feature_ref_offset = base_offset + add_offset + target_offset,
+         .keep = "unused") %>%
+  # TODO get slide naming convention, indicate partial
+  mutate(feature = glue::glue_data(., "{predictor}_relt_{feature_ref_offset}"))
+  # ^ TODO pull default name from var?
+
+# TODO how to track roles?  maybe could have vars output a tibble
+# column per role?  But then only basic roles; no role relative to
+# another column; should role be held in variable instead?  But then
+# does it need to get its actual names?
+
+sum_feature_i <- 7L
+feature <- features_respec$feature[[sum_feature_i]]
+predictor <- features_respec$predictor[[sum_feature_i]]
+feature_ref_offset <- features_respec$feature_ref_offset[[sum_feature_i]]
+
+latest %>%
+  select(all_of(c(key_colnames(.), predictor))) %>%
+  filter(between(.data$time_value,
+                 .env$testing_reference_time + .env$feature_ref_offset,
+                 .env$testing_reference_time + .env$feature_ref_offset)) %>%
+  filter(!is.na(.data[[predictor]])) %>%
+  transmute(
+    ek = .[key_colnames(latest, exclude = "time_value")],
+    time_value,
+    conf_version = corresponding_confkey_versions(., archive, predictor)
+  ) %>%
+  mutate(
+    ref_offset = .data$time_value - .env$testing_reference_time,
+    conf_lag = .data$conf_version - time_get_zero_lag_version(.env$testing_reference_time, archive$time_type, vec_ptype(.data$conf_version)),
+    .keep = "unused"
+  ) %>%
+  # pack(tv = all_of(c("time_value", "version"))) %>%
+  # chop("tv") %>%
+  # pack(tvoffset = c(ref_offset, conf_lag)) %>%
+  # chop("tvoffset") %>%
+  # mutate(predictor = .env$predictor, feature = .env$feature) %>%
+  {}
+
+# For variable setup, looks like will want to feed in the training set
+# or a "design(ing) set" to be able to do latest-missingness-informed
+# variable selection.  Allowing for separate design set allows for
+# that selection to be static if we run it on a burn-in set.  Would
+# this also relate to choosing fixed per-location eta for MultiQT?
+
+# Die-cut sum feature... if want to generalize then probably need to
+# take different computation approach.  Streaming of entry per window
+# not very general.  Maybe form all data into matrix and then use
+# apply?  Or is that too much space?  Current epix_slide as well as
+# tucked-away faster variant take row/version-streaming approach
+# rather than column/tlag-streaming... but unless have each window
+# cover multiple features, no re-use, and no reason to be using
+# "slide".  Instead, consider chunking requests, and within each
+# chunk, using potentially-optimized group-mean/whatever operations.

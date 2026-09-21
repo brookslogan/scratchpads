@@ -5,14 +5,18 @@ library(purrr)
 library(epidatr)
 library(vctrs)
 
-cce <- covidcast_epidata()
+# cce <- covidcast_epidata()
 
 beginning_of_time <- as.Date("1234-01-01")
 analysis_date <- as.Date("2026-03-15")
 
-admissions_issues <- cce$signals$"hhs:confirmed_admissions_covid_1d"$call("state", "*", "*", issues = epirange(beginning_of_time, analysis_date))
+# admissions_issues <- cce$signals$"hhs:confirmed_admissions_covid_1d"$call("state", "*", "*", issues = epirange(beginning_of_time, analysis_date))
 
-google_issues <- cce$signals$"google-symptoms:s02_smoothed_search"$call("state", "*", "*", issues = epirange(beginning_of_time, analysis_date))
+# google_issues <- cce$signals$"google-symptoms:s02_smoothed_search"$call("state", "*", "*", issues = epirange(beginning_of_time, analysis_date))
+
+admissions_issues <- pub_covidcast("hhs", "confirmed_admissions_covid_1d", "state", "day", issues = epirange(beginning_of_time, analysis_date))
+
+google_issues <- pub_covidcast("google-symptoms", "s02_smoothed_search", "state", "day", issues = epirange(beginning_of_time, analysis_date))
 
 full_archive <- epix_merge(
   admissions_issues %>%
@@ -180,6 +184,8 @@ extract2_die_cut_sum_feature <- function(archive, ekts, die_cut_sum_feature, vto
     ref_offset <- vec_slice(tvoffsets$ref_offset, tvoffset_i)
     conf_lag <- vec_slice(tvoffsets$conf_lag, tvoffset_i)
     contrib <- extract2_tvoffset(archive, ekts, predictor, ref_offset, conf_lag, vtol)
+    # XXX are these getting the same version across tvoffsets with
+    # same voffset? maybe get guarantee if confkeys don't include time?
     if (tvoffset_i == 1L) {
       result <- contrib
     } else {
