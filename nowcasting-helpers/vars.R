@@ -128,7 +128,7 @@ tvlag_var <- function(source_name, value_name, tlag, vlag) {
 reltv_var <- function(indicator_name, time_rel_rtv, version_rel_rtv, version_tol) {
   assert_string(indicator_name)
   assert_scalar(time_rel_rtv)
-  assert_scalar(version_rel_rtv)
+  assert_scalar(version_rel_rtv) # XXX call this confkey version rel rtv?
   assert_scalar(version_tol)
   mapping <- function(request_keys, source_data) {
     assert_class(request_keys, "tbl_df")
@@ -140,6 +140,9 @@ reltv_var <- function(indicator_name, time_rel_rtv, version_rel_rtv, version_tol
   class(mapping) <- c("reltv_var", "var")
   mapping
 }
+
+# TODO better terminology... should reltv be tvoffset, and relt
+# reserved for something relative to target t?
 
 # XXX do we need var domain function? (..... then perf & impl work
 # tension between domain+lookup vs. just computing full
@@ -226,20 +229,21 @@ latest %>%
   autoplot(c(percent_cli, v1, v2, v3), .color_by = ".response", .facet_by = "all_keys")
 
 
-archives_data <- list(
-  epidata_archive("nhsn", "confirmed_admissions_covid_ew", "state"),
-  epidata_archive("nssp", "pct_ed_visits_covid", "state")
-)
+# archives_data <- list(
+#   epidata_archive("nhsn", "confirmed_admissions_covid_ew", "state"),
+#   epidata_archive("nssp", "pct_ed_visits_covid", "state")
+# )
 
 # full_archive <- bind_rows(archives_data) %>%
 #   as_epi_archive()
 
 # need changes from dev to make above work
 
-full_archive <- archives_data %>%
+full_archive <-
+  archives_data %>%
   lapply(function(x) pivot_wider(x, id_cols = c("geo_value", "reference_time", "report_time"), names_from = "signal", values_from = "value")) %>%
   lapply(function(x) as_epi_archive(x, time_value = reference_time, version = report_time)) %>%
-  Reduce(f=epix_merge) %>%
+  Reduce(f = function(x, y) epix_merge(x, y, sync = "locf")) %>%
   set_time_week_end("Sat") %>%
   {}
 
@@ -315,3 +319,106 @@ latest %>%
 # cover multiple features, no re-use, and no reason to be using
 # "slide".  Instead, consider chunking requests, and within each
 # chunk, using potentially-optimized group-mean/whatever operations.
+
+# TODO better name than var?  could be confused with colname...
+
+# XXX if having design set after all, then should vars all take in the
+# design set for easier / more immediate / portable validation?
+
+die_cut_agg_var <- function(indicator_name, times_rel_rtv, versions_rel_rtv, agg_fn, version_tol) {
+  assert_string(indicator_name)
+  c(times_rel_rtv, versions_rel_rtv) %<-% vctrs::vec_recycle_common(times_rel_rtv, versions_rel_rtv)
+  assert_function(agg_fn)
+  force(version_tol)
+  mapping <- function(request_keys, data_set) {
+    assert_class(request_keys, "tbl_df")
+    assert_class(data_set, "epi_archive")
+    assert_names(names(request_keys), permutation.of = key_colnames(data_set, exclude = "version"))
+    times_rel_rtv <- time_delta_standardize(times_rel_rtv, data_set$time_type)
+    versions_rel_rtv <- validate_nice_version_lags(versions_rel_rtv, data_set)
+    conf_ekvs <- epix_confkeys(data_set, indicator_name)
+    version_tol <- vtol_preprocess(version_tol, data_set, conf_ekvs)
+    #
+    ekv_colnames <- key_colnames(data_set, exclude = "time_value")
+    setDT(conf_ekvs, key = ekv_colnames)
+    # TODO consider chunking for smaller memory usage
+    #
+    # translate requests for aggregate into requests for contributing values:
+    cross_join(tibble(request_ind = seq_len(nrow(request_keys)),
+                      request_key = request_keys),
+               tibble(time_rel_rtv = times_rel_rtv, version_rel_rtv = versions_rel_rtv)) %>%
+      transmute(
+        request_ind,
+        subrequest_keys = tibble(
+          request_key %>% select(!"time_value"), # unpacks
+          time_value = request_key$time_value + time_rel_rtv,
+          version = request_key$time_value + version_rel_rtv
+        )
+      ) %>%
+      mutate(
+        real_versions_info = conf_ekvs[
+          subrequest_keys[ekv_colnames], on = ekv_colnames, roll = "nearest",
+          list(real_version = x.version, vdiff = x.version - i.version)
+        ]
+      ) %>%
+      print() %>%
+      {
+        .$subrequest_keys$version <- .$real_versions_info$real_version
+        print(data_set$DT)
+        print(.$subrequest_keys)
+        subrequest_results <- data_set$DT[
+          .$subrequest_keys, on = key_colnames(data_set), roll = TRUE,
+          indicator_name,
+          with = FALSE
+        ][[indicator_name]] # `with = FALSE` -> have to manually extract2
+        if (version_tol$inclusive) {
+          subrequest_results[.$real_versions_info[, abs(vdiff) > version_tol$threshold]] <- NA
+        } else {
+          subrequest_results[.$real_versions_info[, abs(vdiff) >= version_tol$threshold]] <- NA
+        }
+        .$subrequest_result <- subrequest_results
+        .
+      } %>%
+      # TODO make above into an extract2_tvoffsets function?
+      summarize(.by = request_ind, result = agg_fn(subrequest_result)) %>%
+      .$result
+  }
+  class(mapping) <- c("die_cut_agg_var", "var")
+  mapping
+}
+
+# TODO stringification methods
+
+zero_date <- as.Date("2020-01-01") - 1
+
+var <- die_cut_agg_var("value", c(-2, 0), 1, toString, version_tol = 1)
+
+var(
+  tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
+  as_epi_archive(tibble(
+    geo_value = 1,
+    time_value = zero_date + c(1, 2, 3),
+    version = zero_date + c(2, 3, 4),
+    value = c(1:3)
+  ))
+)
+
+var(
+  tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
+  as_epi_archive(tibble(
+    geo_value = 1,
+    time_value = zero_date + c(1, 2, 3),
+    version = zero_date + c(2, 5, 5),
+    value = c(1:3)
+  ))
+)
+
+var(
+  tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
+  as_epi_archive(tibble(
+    geo_value = 1,
+    time_value = zero_date + c(1, 2, 3),
+    version = zero_date + c(5, 3, 4),
+    value = c(1:3)
+  ))
+)
