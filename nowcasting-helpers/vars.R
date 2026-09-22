@@ -422,3 +422,12 @@ var(
     value = c(1:3)
   ))
 )
+
+# TODO how to name? want some compression of toffsets and voffsets,
+# but function unless one of a few known may need to have a user name
+# put in... and even then, the auto name may be pretty bad if
+# expressing t and v offset range rather than concept like rolling
+# average... and compressing set to range requires some amount of
+# knowledge of natural spacing...
+
+# TODO enforce size 1 outputs
