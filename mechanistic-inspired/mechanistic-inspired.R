@@ -17,12 +17,13 @@ snapshot %>%
 
 edf <- snapshot %>%
   as_epi_df() %>%
-  filter(geo_value == "ga") %>%
+  # filter(geo_value == "ga") %>%
+  filter(geo_value == "ca") %>%
   # filter(time_value >= as.Date("2022-08-01"))
   filter(time_value >= as.Date("2023-05-01"))
 
-edf %>%
-  autoplot()
+# edf %>%
+#   autoplot()
 
 dat <-
   edf %>%
@@ -40,9 +41,14 @@ dat <-
   {}
 
 fit <- dat %>%
-  glm(formula = Y8 ~ Y1 + Y2 + Y3 + Y4 + Y1_log1p + Y2_log1p + Y3_log1p + Y4_log1p, family = poisson("log")) %>%
+  # glm(formula = Y8 ~ Y1 + Y2 + Y3 + Y4 + Y1_log1p + Y2_log1p + Y3_log1p + Y4_log1p, family = poisson("log")) %>%
   # glm(formula = Y8 ~ Y1_log1p + Y2_log1p + Y3_log1p + Y4_log1p, family = poisson("log")) %>%
   # glm(formula = Y8 ~ Y1 + Y2 + Y3 + Y4, family = poisson("identity"), start = c(1, rep(1,4)/4)) %>%
+  glm(formula = Y8 ~ Y7/Y6*(Y7-Y6) + Y7 + Y7^2 + Y7*Y6 + 0, family = poisson("identity")) %>%
+  # FIXME ^ zeros probably make ^ not work, for ga; but does for ca, good
+  # glm(formula = Y8 ~ Y7/Y6*(Y7-Y6) + Y7 + Y7^2 + Y7*Y6, family = poisson("identity")) %>%
+  # ^ this still doesn't work though, for ga
+  # glm(formula = Y8 ~ Y7/Y6*(Y7-Y6) + Y7 + Y7^2 + Y7*Y6 + 0, family = poisson("identity")) %>%
   {}
 
 fit
@@ -51,18 +57,39 @@ fit
 
 state <- dat %>% tail(1L)
 preds <- numeric(100)
-for (i in 1:100) {
+for (i in 1:(52*4)) {
   state[, paste0("Y", 1:7)] <- state[, paste0("Y", 2:8)]
-  state[, "Y8"] <- NA
-  state[, paste0("Y", 1:7)] <- state[, paste0("Y", 2:8, "_log1p")]
-  state[, "Y8_log1p"] <- NA
-  pred <- rpois(1L, exp(predict(fit, newdata = state)))
+  # state[, "Y8"] <- NA
+  # state[, paste0("Y", 1:7)] <- state[, paste0("Y", 2:8, "_log1p")]
+  # state[, "Y8_log1p"] <- NA
+  # pred <- rpois(1L, exp(predict(fit, newdata = state)))
+  pred <- rpois(1L, predict(fit, newdata = state))
   state[, "Y8"] <- pred
-  state[, "Y8_log1p"] <- log1p(pred)
+  # state[, "Y8_log1p"] <- log1p(pred)
   preds[[i]] <- pred
 }
 
 plot(preds)
+lines(preds)
+# ^ fit fails to reproduce waves
 
-# this was attempt from noiseless diffeq stuff; might have done wrong,
-# or maybe from noiseless and constant-param assumptions...
+gamma <- 1/(6/7) # https://www.webmd.com/cold-and-flu/how-long-flu-contagious ignoring latent period
+beta <- 1.3*gamma # https://en.wikipedia.org/wiki/Basic_reproduction_number
+mu <- 1/26 # randomly pulling a hypothetical referenced in https://www.sciencedirect.com/science/article/pii/S0264410X23007132
+N <- 1e6 # whatever
+rho <- 1 # whatever
+
+preds <- numeric(100)
+state <- c(Y1 = 100, Y2 = 100)
+for (i in 1:2000) {
+  Y1 <- state[["Y1"]]
+  Y2 <- state[["Y2"]]
+  state[["Y1"]] <- Y2
+  state[["Y2"]] <- rpois(1L, (1-mu)*Y2/Y1*(Y2-Y1) + (beta*mu - gamma*mu + 1)*Y2 - beta/(N*rho)*Y2^2 - beta/(N*rho)*(gamma  + mu - 1)*Y2*Y1)
+  preds[[i]] <- state[["Y2"]]
+}
+
+plot(preds)
+# ^ does have waves etc.
+
+# TODO smoothed versions of some features?
