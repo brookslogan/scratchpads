@@ -68,10 +68,9 @@ for (i in 1:(52*4)) {
   # state[, "Y8_log1p"] <- log1p(pred)
   preds[[i]] <- pred
 }
-
 plot(preds)
 lines(preds)
-# ^ fit fails to reproduce waves
+# ^ fit fails to reproduce "real" waves
 
 gamma <- 1/(6/7) # https://www.webmd.com/cold-and-flu/how-long-flu-contagious ignoring latent period
 beta <- 1.3*gamma # https://en.wikipedia.org/wiki/Basic_reproduction_number
@@ -81,15 +80,17 @@ rho <- 1 # whatever
 
 preds <- numeric(100)
 state <- c(Y1 = 100, Y2 = 100)
-for (i in 1:2000) {
+# for (i in 1:2000) {
+for (i in 1:(4*52)) {
   Y1 <- state[["Y1"]]
   Y2 <- state[["Y2"]]
   state[["Y1"]] <- Y2
   state[["Y2"]] <- rpois(1L, (1-mu)*Y2/Y1*(Y2-Y1) + (beta*mu - gamma*mu + 1)*Y2 - beta/(N*rho)*Y2^2 - beta/(N*rho)*(gamma  + mu - 1)*Y2*Y1)
   preds[[i]] <- state[["Y2"]]
 }
-
 plot(preds)
-# ^ does have waves etc.
+# ^ does consistently have waves etc.
 
 # TODO smoothed versions of some features?
+
+# also missing seasonal forcing...
