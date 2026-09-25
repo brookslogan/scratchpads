@@ -174,7 +174,7 @@ taskset_i <- 1L
 taskset <- tasksets_candidate_features$ek[[taskset_i]]
 candidate_features <- tasksets_candidate_features$die_cut_sum_feature[[taskset_i]]
 
-extract2_die_cut_sum_feature <- function(archive, ekts, die_cut_sum_feature, vtol) {
+extract_die_cut_sum_feature <- function(archive, ekts, die_cut_sum_feature, vtol) {
   stopifnot(nrow(die_cut_sum_feature) == 1L)
   predictor <- die_cut_sum_feature$predictor
   tvoffsets <- die_cut_sum_feature$tvoffset[[1L]] # unwrap
@@ -183,7 +183,7 @@ extract2_die_cut_sum_feature <- function(archive, ekts, die_cut_sum_feature, vto
     # ^ maybe keep memory in check vs. map-reduce when summing across many offsets
     ref_offset <- vec_slice(tvoffsets$ref_offset, tvoffset_i)
     conf_lag <- vec_slice(tvoffsets$conf_lag, tvoffset_i)
-    contrib <- extract2_tvoffset(archive, ekts, predictor, ref_offset, conf_lag, vtol)
+    contrib <- extract_tvoffset(archive, ekts, predictor, ref_offset, conf_lag, vtol)
     # XXX are these getting the same version across tvoffsets with
     # same voffset? maybe get guarantee if confkeys don't include time?
     if (tvoffset_i == 1L) {
@@ -201,18 +201,18 @@ extract2_die_cut_sum_feature <- function(archive, ekts, die_cut_sum_feature, vto
 #   mutate(time_value = anchor_version - target_offset, .keep = "unused") %>%
 #   {}
 
-# extract2_tvoffset(archive, training_tbl, "google", -7, as.difftime(0, units = "days"))
+# extract_tvoffset(archive, training_tbl, "google", -7, as.difftime(0, units = "days"))
 
-# extract2_die_cut_sum_feature(archive, training_tbl, candidate_features[1L,], predictor_vtols[[candidate_features$predictor[[1L]]]])
+# extract_die_cut_sum_feature(archive, training_tbl, candidate_features[1L,], predictor_vtols[[candidate_features$predictor[[1L]]]])
 
-# extract2_die_cut_sum_feature(archive, training_tbl, candidate_features[2L,], predictor_vtols[[candidate_features$predictor[[2L]]]])
+# extract_die_cut_sum_feature(archive, training_tbl, candidate_features[2L,], predictor_vtols[[candidate_features$predictor[[2L]]]])
 
 # training_tbl %>%
-#   mutate(val = extract2_die_cut_sum_feature(archive, training_tbl, candidate_features[3L,], predictor_vtols[[candidate_features$predictor[[3L]]]])) %>%
+#   mutate(val = extract_die_cut_sum_feature(archive, training_tbl, candidate_features[3L,], predictor_vtols[[candidate_features$predictor[[3L]]]])) %>%
 #   count(time_value, is.na(val)) %>%
 #   print(n = 2000)
 
-# extract2_die_cut_sum_feature(archive, training_tbl, candidate_features[2L,], predictor_vtols[[candidate_features$predictor[[2L]]]])
+# extract_die_cut_sum_feature(archive, training_tbl, candidate_features[2L,], predictor_vtols[[candidate_features$predictor[[2L]]]])
 
 
 training_tbl <- archive %>%
@@ -227,7 +227,7 @@ for (i in seq_len(nrow(candidate_features))) {
   vtol <- predictor_vtols[[candidate_features$predictor[[i]]]]
   training_tbl <- training_tbl %>%
     mutate_new(!!candidate_features$feature[[i]] :=
-                 extract2_die_cut_sum_feature(archive, training_tbl, feature, vtol))
+                 extract_die_cut_sum_feature(archive, training_tbl, feature, vtol))
 }
 target_based_candidate_features <- candidate_features$feature[
   candidate_features$predictor == target
@@ -292,7 +292,7 @@ for (i in seq_len(nrow(candidate_features))) {
   vtol <- 0
   testing_tbl <- testing_tbl %>%
     mutate_new(!!candidate_features$feature[[i]] :=
-                 extract2_die_cut_sum_feature(archive, testing_tbl, feature, vtol))
+                 extract_die_cut_sum_feature(archive, testing_tbl, feature, vtol))
 }
 testing_tbl <- testing_tbl %>%
   mutate(intercept = 1)
