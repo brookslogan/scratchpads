@@ -42,7 +42,7 @@ full_archive <-
 nowcast_version <- as.Date("2025-02-05")
 archive <- full_archive %>%
   epix_as_of(nowcast_version, all_versions = TRUE) %>%
-  filter(geo_value == unique(geo_value)[[4L]])
+  filter(geo_value == unique(geo_value)[[3L]])
 
 testing_reference_time <- version_get_containing_time_value(nowcast_version, archive)
 latest <- archive %>% epix_as_of_latest()
@@ -61,7 +61,7 @@ features_spec <- bind_rows(
   ) %>%
   # mutate(max_abs_additional_offset = as.difftime(60, units = "days"))
   mutate(max_abs_additional_offset = as.difftime(60, units = "days"))
-for (features_spec_row_i in seq_len(nrow(features_spec))) {
+lapply(seq_len(nrow(features_spec)), function(features_spec_row_i) {
   features_spec_row <- extract_row_as_list(features_spec, features_spec_row_i)
   predictor <- features_spec_row$predictor
   base_offset <- features_spec_row$base_offset %>% time_delta_standardize(time_type)
@@ -81,6 +81,8 @@ for (features_spec_row_i in seq_len(nrow(features_spec))) {
       .[["threshold"]] <- epiprocess:::time_delta_standardize(.[["threshold"]], time_type)
       .
     }
+  predictor_vtol <- epiprocess:::vtol_preprocess(NULL, archive, epiprocess:::epix_confkeys(archive, predictor))
+  # ^ vvv XXX double computing confkeys
   latest %>%
     extract(in_bound(abs(.$time_value - (testing_target_time + base_offset)),
                      # ^ FIXME TODO use time helper functions; and
@@ -94,9 +96,11 @@ for (features_spec_row_i in seq_len(nrow(features_spec))) {
     # TODO: `reltv_vars()`?  nicest printing would requires logic like
     # was imagining for the die cut sum agg default/detailed printing...
     transmute(
-      predictor = .env$predictor,
       reference_time_to_predictor_time = .data$time_value - .env$testing_reference_time,
       reference_time_to_confkey_version = .data$version - .env$testing_reference_time
     ) %>%
-    print()
-}
+    purrr::pmap(function(reference_time_to_predictor_time, reference_time_to_confkey_version) {
+      reltv_var(predictor, reference_time_to_predictor_time, reference_time_to_confkey_version, predictor_vtol)
+    })
+}) %>%
+  list_unchop()

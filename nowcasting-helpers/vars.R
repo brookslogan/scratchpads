@@ -129,7 +129,7 @@ reltv_var <- function(indicator_name, time_rel_rtv, version_rel_rtv, version_tol
   assert_string(indicator_name)
   assert_scalar(time_rel_rtv)
   assert_scalar(version_rel_rtv) # XXX call this confkey version rel rtv?
-  assert_scalar(version_tol)
+  version_tol <- as_inclusive_if_not_bound(version_tol)
   mapping <- function(request_keys, source_data) {
     assert_class(request_keys, "tbl_df")
     assert_class(source_data, "epi_archive")
@@ -159,6 +159,13 @@ format.reltv_var <- function(x, ...) {
   e <- environment(x)
   glue::glue("{e$indicator_name}_{{rtv{format_with_sign(e$time_rel_rtv)}}}^(rtv{format_with_sign(e$version_rel_rtv)})")
 }
+
+print.reltv_var <- function(x, ...) {
+  cat("<reltv_var>", format(x, ...))
+  invisible(x)
+}
+
+# TODO something special for var lists / make var vectors?
 
 latest_nearby_lags <- function(archive, target_horizon, predictor_name, predictor_center_lag, lag_window_min, lag_window_max) {
   latest <- archive %>% epix_as_of_latest()
