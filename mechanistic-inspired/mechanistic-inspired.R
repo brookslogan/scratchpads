@@ -86,6 +86,8 @@ for (i in 1:(40*52)) {
   Y2 <- state[["Y2"]]
   state[["Y1"]] <- Y2
   state[["Y2"]] <- rpois(1L, (1-mu)*Y2/Y1*(Y2-Y1) + (beta*mu - gamma*mu + 1)*Y2 - beta/(N*rho)*Y2^2 - beta/(N*rho)*(gamma  + mu - 1)*Y2*Y1)
+  # vs. deterministic, which approaches steady state:
+  # state[["Y2"]] <- (1-mu)*Y2/Y1*(Y2-Y1) + (beta*mu - gamma*mu + 1)*Y2 - beta/(N*rho)*Y2^2 - beta/(N*rho)*(gamma  + mu - 1)*Y2*Y1
   preds[[i]] <- state[["Y2"]]
 }
 plot(preds)
