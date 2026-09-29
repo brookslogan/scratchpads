@@ -94,3 +94,6 @@ plot(preds)
 # TODO smoothed versions of some features?
 
 # also missing seasonal forcing...
+
+# TODO also try the multi-integral format... seems like it may be more
+# well-behaved than subtract-out-stuff-from-entire-population approach
