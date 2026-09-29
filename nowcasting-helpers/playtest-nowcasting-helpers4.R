@@ -2,6 +2,7 @@
 library(dplyr)
 library(tidyr)
 library(purrr)
+library(vctrs)
 library(epidatr)
 library(vctrs)
 library(magrittr)
@@ -58,8 +59,8 @@ features_spec <- bind_rows(
   tibble(predictor = "confirmed_admissions_covid_ew", base_offset = 0),
   tibble(predictor = "pct_ed_visits_covid", base_offset = 0),
   ) %>%
+  # mutate(max_abs_additional_offset = as.difftime(60, units = "days"))
   mutate(max_abs_additional_offset = as.difftime(60, units = "days"))
-
 for (features_spec_row_i in seq_len(nrow(features_spec))) {
   features_spec_row <- extract_row_as_list(features_spec, features_spec_row_i)
   print(features_spec_row)
@@ -67,7 +68,7 @@ for (features_spec_row_i in seq_len(nrow(features_spec))) {
   base_offset <- features_spec_row$base_offset
   max_abs_additional_offset <- features_spec_row$max_abs_additional_offset %>%
     as_inclusive_if_not_bound() %>%
-    # ^ except never are bound, as bounds not vectors right now, but max abs add offset stored as vector
+    # ^ XXX except never are bound, as bounds not vectors right now, but max abs add offset stored as vector
     {
       if (inherits(.[["threshold"]], "difftime")) {
         .[["threshold"]] <- epiprocess:::difftime_approx_ceiling_time_delta(.[["threshold"]], time_type)
@@ -75,11 +76,22 @@ for (features_spec_row_i in seq_len(nrow(features_spec))) {
       } else {
         .
       }
+    } %>%
+    {
+      .[["threshold"]] <- epiprocess:::time_delta_standardize(.[["threshold"]], time_type)
+      .
     }
   latest %>%
     extract(in_bound(abs(.$time_value - (testing_target_time + base_offset)),
+                     # ^ FIXME TODO use time helper functions; and
+                     # earlier conversion of base_offset; maybe
+                     # refactor some helpers
                      max_abs_additional_offset),
-            c(ekt_names, features_spec_row$predictor)
+            c(ekt_names, predictor)
             ) %>%
+    vec_slice(!vec_detect_missing(.[[predictor]])) %>%
+    mutate(version = corresponding_confkey_versions(., archive, predictor)) %>%
+    # TODO: `reltv_vars()`?  nicest printing would requires logic like
+    # was imagining for the die cut sum agg default/detailed printing...
     print()
 }
