@@ -42,7 +42,7 @@ full_archive <-
 nowcast_version <- as.Date("2025-02-05")
 archive <- full_archive %>%
   epix_as_of(nowcast_version, all_versions = TRUE) %>%
-  filter(geo_value == unique(geo_value)[[2L]])
+  filter(geo_value == unique(geo_value)[[4L]])
 
 testing_reference_time <- version_get_containing_time_value(nowcast_version, archive)
 latest <- archive %>% epix_as_of_latest()
@@ -63,9 +63,9 @@ features_spec <- bind_rows(
   mutate(max_abs_additional_offset = as.difftime(60, units = "days"))
 for (features_spec_row_i in seq_len(nrow(features_spec))) {
   features_spec_row <- extract_row_as_list(features_spec, features_spec_row_i)
-  print(features_spec_row)
   predictor <- features_spec_row$predictor
-  base_offset <- features_spec_row$base_offset
+  base_offset <- features_spec_row$base_offset %>% time_delta_standardize(time_type)
+  # ^ XXX or support fractional here and below, using fractional time delta machinery from Javier and a plain difftime_approx(_fractional)_time_delta
   max_abs_additional_offset <- features_spec_row$max_abs_additional_offset %>%
     as_inclusive_if_not_bound() %>%
     # ^ XXX except never are bound, as bounds not vectors right now, but max abs add offset stored as vector
@@ -93,5 +93,10 @@ for (features_spec_row_i in seq_len(nrow(features_spec))) {
     mutate(version = corresponding_confkey_versions(., archive, predictor)) %>%
     # TODO: `reltv_vars()`?  nicest printing would requires logic like
     # was imagining for the die cut sum agg default/detailed printing...
+    transmute(
+      predictor = .env$predictor,
+      reference_time_to_predictor_time = .data$time_value - .env$testing_reference_time,
+      reference_time_to_confkey_version = .data$version - .env$testing_reference_time
+    ) %>%
     print()
 }
