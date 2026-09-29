@@ -181,3 +181,7 @@ quantreg::rq(y ~ x1 + x2, method = "fn")
 
 
 
+# Consider also iterative penalized residual vs. residual regressions
+# (though, with quantile regression, maybe something else?).
+# Regressions with fewer data points penalized more highly.  Only
+# works if we have some data for full intersection matching test time.
