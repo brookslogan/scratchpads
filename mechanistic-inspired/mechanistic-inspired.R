@@ -81,7 +81,7 @@ rho <- 1 # whatever
 preds <- numeric(100)
 state <- c(Y1 = 100, Y2 = 100)
 # for (i in 1:2000) {
-for (i in 1:(4*52)) {
+for (i in 1:(40*52)) {
   Y1 <- state[["Y1"]]
   Y2 <- state[["Y2"]]
   state[["Y1"]] <- Y2
@@ -89,7 +89,7 @@ for (i in 1:(4*52)) {
   preds[[i]] <- state[["Y2"]]
 }
 plot(preds)
-# ^ does consistently have waves etc.
+# ^ does consistently have waves etc.; well, semi-consistently; maybe too strong an initial wave and it dies out and produces NAs?
 
 # TODO smoothed versions of some features?
 
