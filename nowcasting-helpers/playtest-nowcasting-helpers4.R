@@ -14,30 +14,12 @@ source("vars.R")
 #   epidata_archive("nssp", "pct_ed_visits_covid", "state")
 # )
 
-# full_archive <- bind_rows(archives_data) %>%
-#   as_epi_archive()
-
-# need changes from dev to make above work
-
-full_archive <-
-  archives_data %>%
-  lapply(function(x) {
-    x %>%
-      mutate(report_time = {
-        # fix up fake midnight UTC
-        report_date <- as.Date(as.character(report_time))
-        # check that was fake midnight UTC
-        stopifnot(identical(as.POSIXct(report_date), report_time))
-        report_date
-      })
-  }) %>%
-  lapply(function(x) pivot_wider(x, id_cols = c("geo_value", "reference_time", "report_time"), names_from = "signal", values_from = "value")) %>%
-  lapply(function(x) as_epi_archive(x, time_value = reference_time, version = report_time)) %>%
-  Reduce(f = function(x, y) epix_merge(x, y, sync = "locf")) %>%
-  set_time_week_end("Sat") %>%
-  {}
-
 ###########
+
+full_archive <- bind_rows(archives_data) %>%
+  mutate(report_time = as.Date(as.character(report_time))) %>%
+  as_epi_archive() %>%
+  set_time_week_end("Sat")
 
 nowcast_version <- as.Date("2025-02-05")
 archive <- full_archive %>%
@@ -59,7 +41,6 @@ features_spec <- bind_rows(
   tibble(predictor = "confirmed_admissions_covid_ew", base_offset = 0),
   tibble(predictor = "pct_ed_visits_covid", base_offset = 0),
   ) %>%
-  # mutate(max_abs_additional_offset = as.difftime(60, units = "days"))
   mutate(max_abs_additional_offset = as.difftime(60, units = "days"))
 lapply(seq_len(nrow(features_spec)), function(features_spec_row_i) {
   features_spec_row <- extract_row_as_list(features_spec, features_spec_row_i)
@@ -81,6 +62,7 @@ lapply(seq_len(nrow(features_spec)), function(features_spec_row_i) {
       .[["threshold"]] <- epiprocess:::time_delta_standardize(.[["threshold"]], time_type)
       .
     }
+    # ^ TODO helper functions for this sort of thing
   predictor_vtol <- epiprocess:::vtol_preprocess(NULL, archive, epiprocess:::epix_confkeys(archive, predictor))
   # ^ vvv XXX double computing confkeys
   latest %>%
@@ -104,3 +86,7 @@ lapply(seq_len(nrow(features_spec)), function(features_spec_row_i) {
     })
 }) %>%
   list_unchop()
+
+# TODO do we need to arrange/score by guessed relevance?  seemed like
+# would want for streaming screening procedure.  but it'd be nice to
+# not have to.

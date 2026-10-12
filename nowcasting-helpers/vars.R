@@ -354,39 +354,39 @@ die_cut_agg_var <- function(indicator_name, times_rel_rtv, versions_rel_rtv, agg
 
 # TODO stringification methods
 
-zero_date <- as.Date("2020-01-01") - 1
+# zero_date <- as.Date("2020-01-01") - 1
 
-var <- die_cut_agg_var("value", c(-2, 0), 1, toString, version_tol = 1)
+# var <- die_cut_agg_var("value", c(-2, 0), 1, toString, version_tol = 1)
 
-var(
-  tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
-  as_epi_archive(tibble(
-    geo_value = 1,
-    time_value = zero_date + c(1, 2, 3),
-    version = zero_date + c(2, 3, 4),
-    value = c(1:3)
-  ))
-)
+# var(
+#   tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
+#   as_epi_archive(tibble(
+#     geo_value = 1,
+#     time_value = zero_date + c(1, 2, 3),
+#     version = zero_date + c(2, 3, 4),
+#     value = c(1:3)
+#   ))
+# )
 
-var(
-  tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
-  as_epi_archive(tibble(
-    geo_value = 1,
-    time_value = zero_date + c(1, 2, 3),
-    version = zero_date + c(2, 5, 5),
-    value = c(1:3)
-  ))
-)
+# var(
+#   tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
+#   as_epi_archive(tibble(
+#     geo_value = 1,
+#     time_value = zero_date + c(1, 2, 3),
+#     version = zero_date + c(2, 5, 5),
+#     value = c(1:3)
+#   ))
+# )
 
-var(
-  tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
-  as_epi_archive(tibble(
-    geo_value = 1,
-    time_value = zero_date + c(1, 2, 3),
-    version = zero_date + c(5, 3, 4),
-    value = c(1:3)
-  ))
-)
+# var(
+#   tibble(geo_value = 1, time_value = zero_date + c(2, 3)),
+#   as_epi_archive(tibble(
+#     geo_value = 1,
+#     time_value = zero_date + c(1, 2, 3),
+#     version = zero_date + c(5, 3, 4),
+#     value = c(1:3)
+#   ))
+# )
 
 # TODO how to name? want some compression of toffsets and voffsets,
 # but function unless one of a few known may need to have a user name
