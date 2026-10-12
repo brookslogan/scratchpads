@@ -27,15 +27,40 @@ archive <- full_archive %>%
   filter(geo_value == unique(geo_value)[[3L]])
 
 testing_reference_time <- version_get_containing_time_value(nowcast_version, archive)
-latest <- archive %>% epix_as_of_latest()
 ek_names <- key_colnames(archive, exclude = c("time_value", "version"))
 ekt_names <- c(ek_names, "time_value")
+ektv_names <- c(ekt_names, "version")
 time_type <- archive$time_type
 
 target <- "confirmed_admissions_covid_ew"
-target_offset <- 7
+target_offset <- as.difftime(-1, units = "weeks")
 predictors <- c("confirmed_admissions_covid_ew", "pct_ed_visits_covid")
 testing_target_time <- testing_reference_time + target_offset
+
+target_min_vlag <- as.difftime(60, units = "days")
+validate_nice_version_lags(target_min_vlag, archive, len = 1L)
+# target_max_vlag <- Inf
+target_max_vlag <- target_min_vlag
+if (!identical(target_max_vlag, Inf)) {
+  validate_nice_version_lags(target_max_vlag, archive, len = 1L)
+}
+
+if (!identical(target_max_vlag, Inf)) {
+  target_archive <- archive$DT %>%
+    {.[, c(ektv_names, target), with = FALSE]} %>%
+    setDF() %>%
+    as_tibble() %>%
+    filter(version <= time_value + .env$target_max_vlag) %>%
+    as_epi_archive(other_keys = archive$other_keys, clobberable_versions_start = archive$clobberable_versions_start, versions_end = archive$versions_end) %>%
+    set_time_type0(archive$time_type)
+  nontarget_archive <- archive
+  nontarget_archive$DT <- archive$DT[, vec_set_difference(names(archive$DT), target), with = FALSE]
+  archive <- epix_merge(target_archive, nontarget_archive)
+}
+
+latest <- archive %>% epix_as_of_latest()
+
+# TODO semistable lag?
 
 features_spec <- bind_rows(
   tibble(predictor = "confirmed_admissions_covid_ew", base_offset = 0),
@@ -86,6 +111,7 @@ lapply(seq_len(nrow(features_spec)), function(features_spec_row_i) {
     })
 }) %>%
   list_unchop()
+
 
 # TODO do we need to arrange/score by guessed relevance?  seemed like
 # would want for streaming screening procedure.  but it'd be nice to
